@@ -1,5 +1,6 @@
 import time
 import requests
+import re
 from vk_api import VkApi
 from vk_api.longpoll import VkLongPoll, VkEventType
 
@@ -27,54 +28,71 @@ PRODUCTS = [
     {"name": "Короба 785×235×215", "desc": "Трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 42.87},
 ]
 
+def normalize(text):
+    # Приводим к нижнему регистру, заменяем все варианты "x" на "×", убираем пробелы
+    text = text.lower().strip()
+    text = re.sub(r'[xх*]', '×', text)  # латинская x, русская х, звёздочка
+    text = text.replace(' ', '')
+    return text
+
 def search_products(query):
-    query = query.lower().replace(' ', '')
+    q = normalize(query)
     results = []
     for p in PRODUCTS:
-        name_clean = p["name"].lower().replace(' ', '')
-        if query in name_clean or query in p["desc"].lower():
+        name_clean = normalize(p["name"])
+        desc_clean = normalize(p["desc"])
+        if q in name_clean or q in desc_clean:
             results.append(f"{p['name']} — {p['desc']}\nЦена: {p['price']:.2f} ₽ (в наличии)")
     return results
 
 def main():
-    vk_session = VkApi(token=VK_TOKEN)
-    longpoll = VkLongPoll(vk_session)
-    vk = vk_session.get_api()
-    print("✅ Бот запущен (полная версия с товарами)!")
+    try:
+        print("🔄 Подключаюсь к VK...")
+        vk_session = VkApi(token=VK_TOKEN)
+        longpoll = VkLongPoll(vk_session)
+        vk = vk_session.get_api()
+        print("✅ Бот успешно запущен!")
+        
+        for event in longpoll.listen():
+            if event.type == VkEventType.MESSAGE_NEW and event.to_me:
+                uid = event.user_id
+                msg = event.text.strip()
+                
+                # Проверяем намерение купить
+                if any(word in msg.lower() for word in ["покупаю", "заказываю", "беру", "оформляю"]):
+                    product_found = "неизвестный товар"
+                    for p in PRODUCTS:
+                        if p["name"].lower() in msg.lower():
+                            product_found = p["name"]
+                            break
+                    try:
+                        vk.messages.send(
+                            user_id=MANAGER_VK_ID,
+                            message=f"🛒 НОВАЯ ЗАЯВКА!\nТовар: {product_found}\nСообщение: {msg}",
+                            random_id=0
+                        )
+                        print(f"📩 Уведомление отправлено менеджеру: {product_found}")
+                    except Exception as e:
+                        print(f"❌ Ошибка при отправке уведомления: {e}")
+                    
+                    vk.messages.send(user_id=uid, message="✅ Заявка передана менеджеру, с вами свяжутся!", random_id=0)
+                    continue
 
-    for event in longpoll.listen():
-        if event.type == VkEventType.MESSAGE_NEW and event.to_me:
-            uid = event.user_id
-            msg = event.text.strip()
-
-            # Проверяем намерение купить
-            if any(word in msg.lower() for word in ["покупаю", "заказываю", "беру", "оформляю"]):
-                product_found = "неизвестный товар"
-                for p in PRODUCTS:
-                    if p["name"].lower() in msg.lower():
-                        product_found = p["name"]
-                        break
-                vk.messages.send(
-                    user_id=MANAGER_VK_ID,
-                    message=f"🛒 НОВАЯ ЗАЯВКА!\nТовар: {product_found}\nСообщение: {msg}",
-                    random_id=0
-                )
-                vk.messages.send(user_id=uid, message="✅ Заявка передана менеджеру, с вами свяжутся!", random_id=0)
-                continue
-
-            # Поиск товаров
-            found = search_products(msg)
-            if found:
-                answer = "\n\n".join(found[:5])
-                if len(found) > 5:
-                    answer += "\n\n🔍 Найдено больше позиций, уточните размер."
+                # Поиск товаров
+                found = search_products(msg)
+                if found:
+                    answer = "\n\n".join(found[:5])
+                    if len(found) > 5:
+                        answer += "\n\n🔍 Найдено больше позиций, уточните размер."
+                else:
+                    answer = "🤔 Не нашёл таких коробок. Попробуйте уточнить размер (например, 600×400×400)."
+                
                 vk.messages.send(user_id=uid, message=answer, random_id=0)
-            else:
-                vk.messages.send(
-                    user_id=uid,
-                    message="🤔 Не нашёл таких коробок. Попробуйте уточнить размер (например, 600×400×400).",
-                    random_id=0
-                )
+                print(f"📩 Ответ отправлен пользователю {uid}")
+                
+    except Exception as e:
+        print(f"❌ Критическая ошибка: {e}")
+        raise
 
 if __name__ == "__main__":
     main()
