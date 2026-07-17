@@ -4,8 +4,11 @@ import re
 from vk_api import VkApi
 from vk_api.longpoll import VkLongPoll, VkEventType
 
+# ===== НАСТРОЙКИ =====
 VK_TOKEN = "vk1.a.gB_E6NmXBEv0nRT58o_22HRpW5hhLvc7TC22VbE1M8KBZPgW7beJfO-DmSqnCNGIdVvQu17WHPKa5teVbQq3z93d-pneW6XkAmMdpNowUViS0P0enWa16qKXfA4HRRCvG74_OriEOAF6mtQeddpjDzDoooIAGWBxu84c-1Aj7wE9sGoOrOdVSS5NvnDSjfc0-QunLDoQdSsSgDFQxkIWgg"
 MANAGER_VK_ID = 598512076
+ROUTERAI_API_KEY = "sk-IPbOe2x8ErJLE4odHQxjR1f6_YrdsXEI"
+# ===============================================
 
 PRODUCTS = [
     {"name": "Короба 600×400×400", "desc": "Трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 70.0},
@@ -28,60 +31,106 @@ PRODUCTS = [
     {"name": "Короба 785×235×215", "desc": "Трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 42.87},
 ]
 
-def normalize(text):
-    text = text.lower().strip()
-    text = re.sub(r'[xх*]', '×', text)
-    text = text.replace(' ', '')
-    return text
+SYSTEM_PROMPT = (
+    "Ты — консультант интернет-магазина по продаже гофрокоробов. "
+    "Все коробки трёхслойные T23, самосборные, упаковка по 10 штук. "
+    "Цена указана за штуку. Отвечай кратко, по делу. "
+    "Если клиент пишет 'покупаю', 'заказываю', 'беру' — скажи, что заявка передана менеджеру."
+)
 
-def search_products(query):
-    q = normalize(query)
-    results = []
-    for p in PRODUCTS:
-        name_clean = normalize(p["name"])
-        desc_clean = normalize(p["desc"])
-        if q in name_clean or q in desc_clean:
-            results.append(f"{p['name']} — {p['desc']}\nЦена: {p['price']:.2f} ₽ (в наличии)")
-    return results
+def ask_deepseek_router(user_msg, history=None):
+    if history is None:
+        history = [{"role": "system", "content": SYSTEM_PROMPT}]
+    history.append({"role": "user", "content": user_msg})
+
+    url = "https://routerai.ru/api/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {ROUTERAI_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "model": "deepseek/deepseek-v4-pro",
+        "messages": history,
+        "temperature": 0.7,
+        "max_tokens": 1000
+    }
+
+    try:
+        response = requests.post(url, headers=headers, json=data, timeout=30)
+        response.raise_for_status()
+        answer = response.json()["choices"][0]["message"]["content"]
+        history.append({"role": "assistant", "content": answer})
+        return answer, history
+    except Exception as e:
+        print(f"❌ Ошибка RouterAI: {e}")
+        return "Извините, произошла ошибка. Попробуйте позже.", history
+
+def run_agent(user_msg, history=None):
+    msg_lower = user_msg.lower()
+    is_purchase = any(w in msg_lower for w in ["покупаю", "заказываю", "беру", "оформляю"])
+
+    answer, new_history = ask_deepseek_router(user_msg, history)
+
+    if is_purchase:
+        product_found = "неизвестный товар"
+        for p in PRODUCTS:
+            if p["name"].lower() in msg_lower or any(str(dim) in msg_lower for dim in p["name"].split("×")):
+                product_found = p["name"]
+                break
+
+        try:
+            vk_session = VkApi(token=VK_TOKEN)
+            vk = vk_session.get_api()
+            vk.messages.send(
+                user_id=MANAGER_VK_ID,
+                message=f"🛒 НОВАЯ ЗАЯВКА!\nТовар: {product_found}\nСообщение клиента: {user_msg}",
+                random_id=0
+            )
+            print(f"📩 Уведомление отправлено менеджеру (ID {MANAGER_VK_ID})")
+        except Exception as e:
+            print(f"❌ Не удалось отправить уведомление: {e}")
+
+    return answer, new_history
 
 def main():
-    vk_session = VkApi(token=VK_TOKEN)
-    longpoll = VkLongPoll(vk_session)
-    vk = vk_session.get_api()
-    print("✅ Бот запущен (полная версия с товарами и нормализацией)")
+    while True:
+        try:
+            print("🔄 Подключаюсь к VK...")
+            vk_session = VkApi(token=VK_TOKEN)
+            longpoll = VkLongPoll(vk_session, wait=25)
+            vk = vk_session.get_api()
+            print("✅ Бот запущен (DeepSeek через RouterAI, жду сообщений...)")
 
-    for event in longpoll.listen():
-        if event.type == VkEventType.MESSAGE_NEW and event.to_me:
-            uid = event.user_id
-            msg = event.text.strip()
-
-            # Проверяем намерение купить
-            if any(word in msg.lower() for word in ["покупаю", "заказываю", "беру", "оформляю"]):
-                product_found = "неизвестный товар"
-                for p in PRODUCTS:
-                    if p["name"].lower() in msg.lower():
-                        product_found = p["name"]
-                        break
-                try:
-                    vk.messages.send(
-                        user_id=MANAGER_VK_ID,
-                        message=f"🛒 НОВАЯ ЗАЯВКА!\nТовар: {product_found}\nСообщение: {msg}",
-                        random_id=0
-                    )
-                except:
-                    pass
-                vk.messages.send(user_id=uid, message="✅ Заявка передана менеджеру, с вами свяжутся!", random_id=0)
-                continue
-
-            # Поиск товаров
-            found = search_products(msg)
-            if found:
-                answer = "\n\n".join(found[:5])
-                if len(found) > 5:
-                    answer += "\n\n🔍 Найдено больше позиций, уточните размер."
-            else:
-                answer = "🤔 Не нашёл таких коробок. Попробуйте уточнить размер (например, 600×400×400)."
-            vk.messages.send(user_id=uid, message=answer, random_id=0)
+            dialogs = {}
+            for event in longpoll.listen():
+                if event.type == VkEventType.MESSAGE_NEW and event.to_me:
+                    uid = event.user_id
+                    text = event.text.strip()
+                    if not text:
+                        continue
+                    if uid not in dialogs:
+                        dialogs[uid] = [{"role": "system", "content": SYSTEM_PROMPT}]
+                    try:
+                        ans, new_hist = run_agent(text, dialogs[uid])
+                        dialogs[uid] = new_hist
+                        vk.messages.send(user_id=uid, message=ans, random_id=0)
+                    except Exception as e:
+                        print(f"❌ Ошибка при обработке: {e}")
+                        try:
+                            vk.messages.send(user_id=uid, message="Ошибка, попробуйте позже.", random_id=0)
+                        except:
+                            pass
+        except (ConnectionError, requests.exceptions.ConnectionError) as e:
+            print(f"⚠️ Потеря соединения с VK: {e}")
+            print("🔄 Переподключение через 10 секунд...")
+            time.sleep(10)
+        except KeyboardInterrupt:
+            print("👋 Бот остановлен пользователем.")
+            break
+        except Exception as e:
+            print(f"❌ Неизвестная ошибка: {e}")
+            print("🔄 Перезапуск через 15 секунд...")
+            time.sleep(15)
 
 if __name__ == "__main__":
     main()
