@@ -1,3 +1,2 @@
 vk-api
 requests
-Исправил requirements.txt — теперь только зависимости
