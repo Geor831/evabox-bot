@@ -6,7 +6,7 @@ from vk_api.longpoll import VkLongPoll, VkEventType
 
 # ===== НАСТРОЙКИ =====
 VK_TOKEN = "vk1.a.gB_E6NmXBEv0nRT58o_22HRpW5hhLvc7TC22VbE1M8KBZPgW7beJfO-DmSqnCNGIdVvQu17WHPKa5teVbQq3z93d-pneW6XkAmMdpNowUViS0P0enWa16qKXfA4HRRCvG74_OriEOAF6mtQeddpjDzDoooIAGWBxu84c-1Aj7wE9sGoOrOdVSS5NvnDSjfc0-QunLDoQdSsSgDFQxkIWgg"
-MANAGER_VK_ID = 598512076
+MANAGER_VK_ID = 29279564
 ROUTERAI_API_KEY = "sk-IPbOe2x8ErJLE4odHQxjR1f6_YrdsXEI"
 # ===============================================
 
