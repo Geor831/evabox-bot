@@ -4,9 +4,11 @@ import re
 from vk_api import VkApi
 from vk_api.longpoll import VkLongPoll, VkEventType
 
+# ===== НАСТРОЙКИ =====
 VK_TOKEN = "vk1.a.gB_E6NmXBEv0nRT58o_22HRpW5hhLvc7TC22VbE1M8KBZPgW7beJfO-DmSqnCNGIdVvQu17WHPKa5teVbQq3z93d-pneW6XkAmMdpNowUViS0P0enWa16qKXfA4HRRCvG74_OriEOAF6mtQeddpjDzDoooIAGWBxu84c-1Aj7wE9sGoOrOdVSS5NvnDSjfc0-QunLDoQdSsSgDFQxkIWgg"
 MANAGER_VK_ID = 29279564
 AI_ROUTER_API_KEY = "air_n-rDGlwEFZHLQ57G6q1rOW0OSP4MRDW--O5JFeQHHNc"
+# ===============================================
 
 PRODUCTS = [
     {"name": "Короба 600×400×400", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 70.0},
@@ -30,7 +32,7 @@ PRODUCTS = [
     {"name": "Ведро пластиковое пищевое 20 л с крышкой", "desc": "Б/У, из-под сиропа, идеальное состояние, без сколов, трещин и запаха. Толстый пластик (1 кг), герметичная крышка, пищевой пластик.", "price": 150.0}
 ]
 
-# Жёсткие ответы про вёдра (без AI)
+# ===== ЖЁСТКИЕ ПРАВИЛА (без AI) =====
 def get_bucket_answer(question):
     q = question.lower().replace("ё", "е")
     if "откуда" in q and "ведр" in q:
@@ -38,25 +40,31 @@ def get_bucket_answer(question):
     if "состояни" in q and "ведр" in q:
         return "Вёдра Б/У, но в идеальном состоянии — без дефектов, без запаха, пищевой пластик. Отличный вариант для хранения."
     if "нов" in q and "ведр" in q:
-        return "Вёдра не новые, они Б/У (из-под сиропа). Но состояние отличное, без сколов и трещин. Цена — 150 ₽."
+        return "Вёдра не новые, они Б/У (из-под сиропа). Состояние отличное, без сколов и трещин. Цена — 150 ₽."
     if "б/у" in q and "ведр" in q:
         return "Да, вёдра Б/У, из-под сиропа. Состояние идеальное, герметичная крышка, пищевой пластик, толстые стенки."
     if "объявл" in q and "ведр" in q:
         return "В объявлении указано Б/У. Вёдра из-под сиропа, в идеальном состоянии. Цена 150 ₽ за штуку."
+    if any(word in q for word in ["где использовать", "для чего", "применение", "использовать", "можно использовать"]) and "ведр" in q:
+        return ("Вёдра подходят для хранения сыпучих продуктов, воды, жидкостей, для заготовок (соления, варенья), "
+                "а также для технических нужд. Пищевой пластик безопасен для контакта с продуктами. "
+                "Герметичная крышка и толстые стенки делают их удобными и надёжными.")
+    if "сколько" in q and "ведр" in q:
+        return "Цена: 150 ₽ за штуку."
+    if "размер" in q and "ведр" in q:
+        return "Объём ведра — 20 литров. Диаметр горловины стандартный, крышка в комплекте."
     return None
 
-SYSTEM_PROMPT = (
-    "Ты — консультант EVA.store.\n"
-    "Товары:\n"
-    "- Коробки: НОВЫЕ, гофрокартон T23, упаковка 10 шт.\n"
-    "- Вёдра 20 л: Б/У, из-под сиропа, идеальное состояние, 150 ₽.\n\n"
-    "ВАЖНО: Вёдра — НЕ НОВЫЕ. Всегда подчёркивай это.\n"
-    "Отвечай кратко и дружелюбно."
-)
+def get_box_answer(question):
+    q = question.lower().replace("ё", "е")
+    if "откуда" in q and "коробк" in q:
+        return "Коробки новые, из трёхслойного гофрокартона T23, самосборные, упаковка по 10 штук."
+    return None
 
+# ===== AI ROUTER =====
 def ask_airouter(user_msg, history=None):
     if history is None:
-        history = [{"role": "system", "content": SYSTEM_PROMPT}]
+        history = [{"role": "system", "content": "Ты консультант EVA.store. Отвечай кратко и по делу."}]
     history.append({"role": "user", "content": user_msg})
 
     endpoints = [
@@ -67,42 +75,70 @@ def ask_airouter(user_msg, history=None):
         "Authorization": f"Bearer {AI_ROUTER_API_KEY}",
         "Content-Type": "application/json"
     }
-    data = {
-        "model": "deepseek/deepseek-chat",
-        "messages": history,
-        "temperature": 0.7,
-        "max_tokens": 1000
-    }
+    models = ["deepseek/deepseek-chat", "deepseek-chat", "openrouter/free"]
 
     for url in endpoints:
-        try:
-            response = requests.post(url, headers=headers, json=data, timeout=30)
-            if response.status_code == 200:
-                answer = response.json()["choices"][0]["message"]["content"]
-                history.append({"role": "assistant", "content": answer})
-                return answer, history
-        except Exception as e:
-            print(f"⚠️ Ошибка на {url}: {e}")
-            continue
+        for model in models:
+            data = {
+                "model": model,
+                "messages": history,
+                "temperature": 0.7,
+                "max_tokens": 1000
+            }
+            try:
+                response = requests.post(url, headers=headers, json=data, timeout=30)
+                if response.status_code == 200:
+                    answer = response.json()["choices"][0]["message"]["content"]
+                    history.append({"role": "assistant", "content": answer})
+                    return answer, history
+            except Exception as e:
+                print(f"⚠️ Ошибка на {url} с моделью {model}: {e}")
+                continue
+    return None, history
 
-    return "Извините, произошла ошибка. Попробуйте позже.", history
+# ===== ПОИСК ПО ТОВАРАМ (fallback) =====
+def normalize(text):
+    text = text.lower().strip()
+    text = re.sub(r'[xх*]', '×', text)
+    text = text.replace(' ', '')
+    return text
 
+def search_products(query):
+    q = normalize(query)
+    results = []
+    for p in PRODUCTS:
+        if q in normalize(p["name"]) or q in normalize(p["desc"]):
+            results.append(f"{p['name']} — {p['desc']}\nЦена: {p['price']:.2f} ₽")
+    return results
+
+def fallback_answer(query):
+    results = search_products(query)
+    if results:
+        return "\n\n".join(results[:5])
+    return "🤔 Не нашёл таких товаров. Попробуйте уточнить размер (например, 600×400×400) или напишите «вёдра»."
+
+# ===== ОСНОВНОЙ ОБРАБОТЧИК =====
 def run_agent(user_msg, history=None):
     msg_lower = user_msg.lower().replace("ё", "е")
 
-    # Жёсткий перехват — отвечаем сами, без AI
-    bucket_answer = get_bucket_answer(msg_lower)
-    if bucket_answer:
-        return bucket_answer, history
+    # 1. Жёсткие правила
+    bucket_ans = get_bucket_answer(msg_lower)
+    if bucket_ans:
+        return bucket_ans, history
 
-    # AI Router для остальных вопросов
+    box_ans = get_box_answer(msg_lower)
+    if box_ans:
+        return box_ans, history
+
+    if msg_lower in ["привет", "здравствуйте", "добрый день", "доброе утро"]:
+        return "Здравствуйте! Я бот-консультант. Напишите, что вас интересует: коробки (укажите размер) или вёдра.", history
+
+    # 2. Проверка на покупку (отправляем уведомление до AI)
     is_purchase = any(w in msg_lower for w in ["покупаю", "заказываю", "беру", "оформляю"])
-    answer, new_history = ask_airouter(user_msg, history)
-
     if is_purchase:
         product_found = "неизвестный товар"
         for p in PRODUCTS:
-            if p["name"].lower() in msg_lower or any(str(dim) in msg_lower for dim in p["name"].split("×")):
+            if p["name"].lower() in msg_lower:
                 product_found = p["name"]
                 break
         try:
@@ -115,7 +151,13 @@ def run_agent(user_msg, history=None):
         except Exception as e:
             print(f"❌ Ошибка уведомления: {e}")
 
-    return answer, new_history
+    # 3. Попытка AI Router
+    ai_answer, new_history = ask_airouter(user_msg, history)
+    if ai_answer is not None:
+        return ai_answer, new_history
+
+    # 4. Fallback — поиск по товарам
+    return fallback_answer(user_msg), history
 
 def main():
     while True:
@@ -123,7 +165,7 @@ def main():
             print("🔄 Подключаюсь к VK...")
             vk_session = VkApi(token=VK_TOKEN)
             longpoll = VkLongPoll(vk_session, wait=25)
-            print("✅ Бот запущен (AI Router + жёсткие правила)")
+            print("✅ Бот запущен (AI Router + жёсткие правила + fallback)")
 
             dialogs = {}
             for event in longpoll.listen():
@@ -133,7 +175,7 @@ def main():
                     if not text:
                         continue
                     if uid not in dialogs:
-                        dialogs[uid] = [{"role": "system", "content": SYSTEM_PROMPT}]
+                        dialogs[uid] = []
                     try:
                         ans, new_hist = run_agent(text, dialogs[uid])
                         dialogs[uid] = new_hist
@@ -141,7 +183,7 @@ def main():
                             user_id=uid, message=ans, random_id=0
                         )
                     except Exception as e:
-                        print(f"❌ Ошибка: {e}")
+                        print(f"❌ Ошибка при обработке: {e}")
         except Exception as e:
             print(f"❌ Критическая ошибка: {e}")
             time.sleep(15)
