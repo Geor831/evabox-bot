@@ -55,6 +55,7 @@ def get_bucket_answer(question):
         return "Объём ведра — 20 литров. Диаметр горловины стандартный, крышка в комплекте."
     return None
 
+# ===== УЛУЧШЕННЫЙ ПОИСК ПО ТОВАРАМ (fallback) =====
 def normalize(text):
     text = text.lower().strip()
     text = re.sub(r'[xх*]', '×', text)
@@ -86,9 +87,10 @@ def fallback_answer(query):
         return f"{p['name']} — {p['desc']}\nЦена: {p['price']:.2f} ₽"
     return "🤔 Не нашёл таких товаров. Попробуйте уточнить размер (например, 600×400×400) или напишите «вёдра»."
 
+# ===== ВЫЗОВ CLOUD.RU =====
 def ask_cloud(user_msg, history=None):
     if history is None:
-        history = [{"role": "system", "content": "Ты консультант EVA.store. Отвечай кратко и по делу."}]
+        history = [{"role": "system", "content": "Ты консультант EVA.store. Отвечай кратко и по делу. Ты знаешь все товары и их цены."}]
     history.append({"role": "user", "content": user_msg})
 
     url = "https://foundation-models.api.cloud.ru/v1/chat/completions"
@@ -104,7 +106,7 @@ def ask_cloud(user_msg, history=None):
     }
 
     try:
-        response = requests.post(url, headers=headers, json=data, timeout=10)
+        response = requests.post(url, headers=headers, json=data, timeout=20)
         if response.status_code == 200:
             answer = response.json()["choices"][0]["message"]["content"]
             history.append({"role": "assistant", "content": answer})
@@ -112,13 +114,15 @@ def ask_cloud(user_msg, history=None):
         else:
             return f"❌ Ошибка Cloud.ru (код {response.status_code}): {response.text[:200]}", history
     except requests.exceptions.Timeout:
-        return "⏱️ Превышено время ожидания ответа от Cloud.ru. Попробуйте позже.", history
+        return "⏱️ Cloud.ru не отвечает (таймаут). Попробуйте позже или уточните размер напрямую, например: 600×400×400.", history
     except Exception as e:
         return f"❌ Ошибка при вызове Cloud.ru: {str(e)[:200]}", history
 
+# ===== ОСНОВНОЙ ОБРАБОТЧИК =====
 def run_agent(user_msg, history=None):
     msg_lower = user_msg.lower().replace("ё", "е")
 
+    # 1. Жёсткие правила
     bucket_ans = get_bucket_answer(msg_lower)
     if bucket_ans:
         return bucket_ans, history
@@ -129,6 +133,7 @@ def run_agent(user_msg, history=None):
     if "откуда" in msg_lower and "коробк" in msg_lower:
         return "Коробки новые, из трёхслойного гофрокартона T23, самосборные, упаковка по 10 штук.", history
 
+    # 2. Проверка на покупку
     is_purchase = any(w in msg_lower for w in ["покупаю", "заказываю", "беру", "оформляю"])
     if is_purchase:
         product_found = "неизвестный товар"
@@ -146,12 +151,16 @@ def run_agent(user_msg, history=None):
         except:
             pass
 
+    # 3. Попытка Cloud.ru
     ai_answer, new_history = ask_cloud(user_msg, history)
     if ai_answer.startswith("❌") or ai_answer.startswith("⏱️"):
-        return ai_answer, new_history
+        # Если ошибка — возвращаем fallback
+        fallback = fallback_answer(user_msg)
+        return f"{ai_answer}\n\n(Попробуйте написать просто размер, например: 600×400×400)", new_history
     if ai_answer is not None:
         return ai_answer, new_history
 
+    # 4. Если Cloud.ru не ответил (None) — fallback
     return fallback_answer(user_msg), history
 
 def main():
