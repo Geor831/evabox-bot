@@ -7,7 +7,7 @@ from vk_api.longpoll import VkLongPoll, VkEventType
 # ===== НАСТРОЙКИ =====
 VK_TOKEN = "vk1.a.gB_E6NmXBEv0nRT58o_22HRpW5hhLvc7TC22VbE1M8KBZPgW7beJfO-DmSqnCNGIdVvQu17WHPKa5teVbQq3z93d-pneW6XkAmMdpNowUViS0P0enWa16qKXfA4HRRCvG74_OriEOAF6mtQeddpjDzDoooIAGWBxu84c-1Aj7wE9sGoOrOdVSS5NvnDSjfc0-QunLDoQdSsSgDFQxkIWgg"
 MANAGER_VK_ID = 29279564
-CLOUD_API_KEY = "NGFjYmFiNjItZDUwNi00MzJkLTg1YzItOGZkZTRjNjhkZGQ3.b58402e737860e9931736d464b783c41"
+AITUNNEL_API_KEY = "sk-aitunnel-EJz97YJpiOwnaObmGNjf6mU8cT2OdP8L"
 # ===============================================
 
 PRODUCTS = [
@@ -36,26 +36,22 @@ PRODUCTS = [
 def get_bucket_answer(question):
     q = question.lower().replace("ё", "е")
     if "откуда" in q and "ведр" in q:
-        return "Вёдра Б/У, из-под сиропа, в идеальном состоянии. Без сколов, трещин и запаха."
+        return "Вёдра Б/У, из-под сиропа, в идеальном состоянии."
     if "состояни" in q and "ведр" in q:
-        return "Вёдра Б/У, но в идеальном состоянии — без дефектов, без запаха, пищевой пластик. Отличный вариант для хранения."
+        return "Вёдра Б/У, в идеальном состоянии — без дефектов и запаха."
     if "нов" in q and "ведр" in q:
-        return "Вёдра не новые, они Б/У (из-под сиропа). Состояние отличное, без сколов и трещин. Цена — 150 ₽."
+        return "Вёдра не новые, они Б/У (из-под сиропа), состояние отличное. Цена — 150 ₽."
     if "б/у" in q and "ведр" in q:
-        return "Да, вёдра Б/У, из-под сиропа. Состояние идеальное, герметичная крышка, пищевой пластик, толстые стенки."
-    if "объявл" in q and "ведр" in q:
-        return "В объявлении указано Б/У. Вёдра из-под сиропа, в идеальном состоянии. Цена 150 ₽ за штуку."
-    if any(word in q for word in ["где использовать", "для чего", "применение", "использовать", "можно использовать"]) and "ведр" in q:
-        return ("Вёдра подходят для хранения сыпучих продуктов, воды, жидкостей, для заготовок (соления, варенья), "
-                "а также для технических нужд. Пищевой пластик безопасен для контакта с продуктами. "
-                "Герметичная крышка и толстые стенки делают их удобными и надёжными.")
+        return "Да, вёдра Б/У, из-под сиропа, состояние идеальное."
     if "сколько" in q and "ведр" in q:
         return "Цена: 150 ₽ за штуку."
     if "размер" in q and "ведр" in q:
-        return "Объём ведра — 20 литров. Диаметр горловины стандартный, крышка в комплекте."
+        return "Объём ведра — 20 литров, крышка в комплекте."
+    if any(word in q for word in ["где использовать", "для чего", "применение"]) and "ведр" in q:
+        return "Вёдра подходят для хранения сыпучих продуктов, воды, для заготовок и технических нужд."
     return None
 
-# ===== УЛУЧШЕННЫЙ ПОИСК ПО ТОВАРАМ (fallback) =====
+# ===== ПОИСК ПО ТОВАРАМ (fallback) =====
 def normalize(text):
     text = text.lower().strip()
     text = re.sub(r'[xх*]', '×', text)
@@ -85,21 +81,21 @@ def fallback_answer(query):
     if results:
         p = results[0]
         return f"{p['name']} — {p['desc']}\nЦена: {p['price']:.2f} ₽"
-    return "🤔 Не нашёл таких товаров. Попробуйте уточнить размер (например, 600×400×400) или напишите «вёдра»."
+    return "🤔 Не нашёл таких товаров. Напишите размер (например, 600×400×400) или спросите про вёдра."
 
-# ===== ВЫЗОВ CLOUD.RU =====
-def ask_cloud(user_msg, history=None):
+# ===== ВЫЗОВ AITUNNEL =====
+def ask_aitunnel(user_msg, history=None):
     if history is None:
-        history = [{"role": "system", "content": "Ты консультант EVA.store. Отвечай кратко и по делу. Ты знаешь все товары и их цены."}]
+        history = [{"role": "system", "content": "Ты — консультант интернет-магазина EVA.store. Отвечай кратко и по делу."}]
     history.append({"role": "user", "content": user_msg})
 
-    url = "https://foundation-models.api.cloud.ru/v1/chat/completions"
+    url = "https://api.aitunnel.ru/v1/chat/completions"
     headers = {
-        "Authorization": f"Bearer {CLOUD_API_KEY}",
+        "Authorization": f"Bearer {AITUNNEL_API_KEY}",
         "Content-Type": "application/json"
     }
     data = {
-        "model": "deepseek-ai/DeepSeek-V4-Flash",
+        "model": "deepseek-chat",
         "messages": history,
         "temperature": 0.7,
         "max_tokens": 1000
@@ -112,28 +108,26 @@ def ask_cloud(user_msg, history=None):
             history.append({"role": "assistant", "content": answer})
             return answer, history
         else:
-            return f"❌ Ошибка Cloud.ru (код {response.status_code}): {response.text[:200]}", history
+            return f"❌ Ошибка AITunnel (код {response.status_code}): {response.text[:200]}", history
     except requests.exceptions.Timeout:
-        return "⏱️ Cloud.ru не отвечает (таймаут). Попробуйте позже или уточните размер напрямую, например: 600×400×400.", history
+        return None, history
     except Exception as e:
-        return f"❌ Ошибка при вызове Cloud.ru: {str(e)[:200]}", history
+        return None, history
 
 # ===== ОСНОВНОЙ ОБРАБОТЧИК =====
 def run_agent(user_msg, history=None):
     msg_lower = user_msg.lower().replace("ё", "е")
 
-    # 1. Жёсткие правила
     bucket_ans = get_bucket_answer(msg_lower)
     if bucket_ans:
         return bucket_ans, history
 
     if msg_lower in ["привет", "здравствуйте", "добрый день", "доброе утро"]:
-        return "Здравствуйте! Я бот-консультант. Напишите, что вас интересует: коробки (укажите размер) или вёдра.", history
+        return "Здравствуйте! Я бот-консультант. Напишите размер коробки (например, 600×400×400) или спросите про вёдра.", history
 
     if "откуда" in msg_lower and "коробк" in msg_lower:
         return "Коробки новые, из трёхслойного гофрокартона T23, самосборные, упаковка по 10 штук.", history
 
-    # 2. Проверка на покупку
     is_purchase = any(w in msg_lower for w in ["покупаю", "заказываю", "беру", "оформляю"])
     if is_purchase:
         product_found = "неизвестный товар"
@@ -151,16 +145,10 @@ def run_agent(user_msg, history=None):
         except:
             pass
 
-    # 3. Попытка Cloud.ru
-    ai_answer, new_history = ask_cloud(user_msg, history)
-    if ai_answer.startswith("❌") or ai_answer.startswith("⏱️"):
-        # Если ошибка — возвращаем fallback
-        fallback = fallback_answer(user_msg)
-        return f"{ai_answer}\n\n(Попробуйте написать просто размер, например: 600×400×400)", new_history
+    ai_answer, new_history = ask_aitunnel(user_msg, history)
     if ai_answer is not None:
         return ai_answer, new_history
 
-    # 4. Если Cloud.ru не ответил (None) — fallback
     return fallback_answer(user_msg), history
 
 def main():
@@ -169,7 +157,7 @@ def main():
             print("🔄 Подключаюсь к VK...")
             vk_session = VkApi(token=VK_TOKEN)
             longpoll = VkLongPoll(vk_session, wait=25)
-            print("✅ Бот запущен (Cloud.ru AI + fallback)")
+            print("✅ Бот запущен (AITunnel + fallback)")
 
             dialogs = {}
             for event in longpoll.listen():
