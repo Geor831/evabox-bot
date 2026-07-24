@@ -7,7 +7,7 @@ from vk_api.longpoll import VkLongPoll, VkEventType
 # ===== НАСТРОЙКИ =====
 VK_TOKEN = "vk1.a.gB_E6NmXBEv0nRT58o_22HRpW5hhLvc7TC22VbE1M8KBZPgW7beJfO-DmSqnCNGIdVvQu17WHPKa5teVbQq3z93d-pneW6XkAmMdpNowUViS0P0enWa16qKXfA4HRRCvG74_OriEOAF6mtQeddpjDzDoooIAGWBxu84c-1Aj7wE9sGoOrOdVSS5NvnDSjfc0-QunLDoQdSsSgDFQxkIWgg"
 MANAGER_VK_ID = 29279564
-ROUTERAI_API_KEY = "sk-IPbOe2x8ErJLE4odHQxjR1f6_YrdsXEI"
+AI_ROUTER_API_KEY = "air_n-rDGlwEFZHLQ57G6q1rOW0OSP4MRDW--O5JFeQHHNc"
 # ===============================================
 
 PRODUCTS = [
@@ -40,18 +40,19 @@ SYSTEM_PROMPT = (
     "Если клиент пишет 'покупаю', 'заказываю', 'беру' — скажи, что заявка передана менеджеру."
 )
 
-def ask_deepseek_router(user_msg, history=None):
+def ask_airouter(user_msg, history=None):
     if history is None:
         history = [{"role": "system", "content": SYSTEM_PROMPT}]
     history.append({"role": "user", "content": user_msg})
 
-    url = "https://routerai.ru/api/v1/chat/completions"
+    # AI Router имеет два возможных эндпоинта, попробуем первый
+    url = "https://api.airouter.host/v1/chat/completions"
     headers = {
-        "Authorization": f"Bearer {ROUTERAI_API_KEY}",
+        "Authorization": f"Bearer {AI_ROUTER_API_KEY}",
         "Content-Type": "application/json"
     }
     data = {
-        "model": "deepseek/deepseek-v4-pro",
+        "model": "deepseek/deepseek-chat",  # можно также попробовать "deepseek-chat"
         "messages": history,
         "temperature": 0.7,
         "max_tokens": 1000
@@ -64,14 +65,24 @@ def ask_deepseek_router(user_msg, history=None):
         history.append({"role": "assistant", "content": answer})
         return answer, history
     except Exception as e:
-        print(f"❌ Ошибка RouterAI: {e}")
-        return "Извините, произошла ошибка. Попробуйте позже.", history
+        # Если первый эндпоинт не работает, пробуем второй
+        print(f"❌ Ошибка AI Router (первый эндпоинт): {e}")
+        try:
+            url2 = "https://api.airouter.ru/v1/chat/completions"
+            response = requests.post(url2, headers=headers, json=data, timeout=30)
+            response.raise_for_status()
+            answer = response.json()["choices"][0]["message"]["content"]
+            history.append({"role": "assistant", "content": answer})
+            return answer, history
+        except Exception as e2:
+            print(f"❌ Ошибка AI Router (второй эндпоинт): {e2}")
+            return "Извините, произошла ошибка. Попробуйте позже.", history
 
 def run_agent(user_msg, history=None):
     msg_lower = user_msg.lower()
     is_purchase = any(w in msg_lower for w in ["покупаю", "заказываю", "беру", "оформляю"])
 
-    answer, new_history = ask_deepseek_router(user_msg, history)
+    answer, new_history = ask_airouter(user_msg, history)
 
     if is_purchase:
         product_found = "неизвестный товар"
@@ -101,7 +112,7 @@ def main():
             vk_session = VkApi(token=VK_TOKEN)
             longpoll = VkLongPoll(vk_session, wait=25)
             vk = vk_session.get_api()
-            print("✅ Бот запущен (DeepSeek через RouterAI, жду сообщений...)")
+            print("✅ Бот запущен (AI Router, жду сообщений...)")
 
             dialogs = {}
             for event in longpoll.listen():
