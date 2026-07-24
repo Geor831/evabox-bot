@@ -4,11 +4,9 @@ import re
 from vk_api import VkApi
 from vk_api.longpoll import VkLongPoll, VkEventType
 
-# ===== НАСТРОЙКИ =====
 VK_TOKEN = "vk1.a.gB_E6NmXBEv0nRT58o_22HRpW5hhLvc7TC22VbE1M8KBZPgW7beJfO-DmSqnCNGIdVvQu17WHPKa5teVbQq3z93d-pneW6XkAmMdpNowUViS0P0enWa16qKXfA4HRRCvG74_OriEOAF6mtQeddpjDzDoooIAGWBxu84c-1Aj7wE9sGoOrOdVSS5NvnDSjfc0-QunLDoQdSsSgDFQxkIWgg"
 MANAGER_VK_ID = 29279564
 AITUNNEL_API_KEY = "sk-aitunnel-EJz97YJpiOwnaObmGNjf6mU8cT2OdP8L"
-# ===============================================
 
 PRODUCTS = [
     {"name": "Короба 600×400×400", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 70.0},
@@ -32,72 +30,19 @@ PRODUCTS = [
     {"name": "Ведро пластиковое пищевое 20 л с крышкой", "desc": "Б/У, из-под сиропа, идеальное состояние, без сколов, трещин и запаха. Толстый пластик (1 кг), герметичная крышка, пищевой пластик.", "price": 150.0}
 ]
 
-# Формируем список товаров для системного промпта
-PRODUCTS_LIST = "\n".join([f"- {p['name']}: {p['price']:.2f} ₽, {p['desc']}" for p in PRODUCTS])
+PRODUCTS_TEXT = "\n".join([f"- {p['name']}: {p['price']:.2f} ₽, {p['desc']}" for p in PRODUCTS])
 
 SYSTEM_PROMPT = (
-    "Ты — консультант интернет-магазина EVA.store.\n"
-    "У нас есть следующие товары:\n"
-    f"{PRODUCTS_LIST}\n"
-    "Отвечай на вопросы о товарах, используя только эту информацию.\n"
-    "Если клиент спрашивает о цене, наличии или характеристиках — давай точный ответ из списка.\n"
+    "Ты — продавец-консультант интернет-магазина EVA.store.\n"
+    "У нас есть следующие товары с точными ценами:\n"
+    f"{PRODUCTS_TEXT}\n"
+    "Если клиент спрашивает о цене, наличии, характеристиках — давай точный ответ из этого списка.\n"
+    "Если клиент спрашивает, где купить — говори, что у нас, в EVA.store.\n"
     "Если клиент пишет 'покупаю', 'заказываю', 'беру' — скажи, что заявка передана менеджеру.\n"
-    "Отвечай кратко, дружелюбно, по делу.\n"
-    "Вёдра — Б/У, из-под сиропа, состояние идеальное."
+    "Вёдра — Б/У, из-под сиропа, состояние идеальное.\n"
+    "Отвечай кратко, дружелюбно, по делу."
 )
 
-# ===== ЖЁСТКИЕ ПРАВИЛА (без AI) =====
-def get_bucket_answer(question):
-    q = question.lower().replace("ё", "е")
-    if "откуда" in q and "ведр" in q:
-        return "Вёдра Б/У, из-под сиропа, в идеальном состоянии."
-    if "состояни" in q and "ведр" in q:
-        return "Вёдра Б/У, в идеальном состоянии — без дефектов и запаха."
-    if "нов" in q and "ведр" in q:
-        return "Вёдра не новые, они Б/У (из-под сиропа), состояние отличное. Цена — 150 ₽."
-    if "б/у" in q and "ведр" in q:
-        return "Да, вёдра Б/У, из-под сиропа, состояние идеальное."
-    if "сколько" in q and "ведр" in q:
-        return "Цена: 150 ₽ за штуку."
-    if "размер" in q and "ведр" in q:
-        return "Объём ведра — 20 литров, крышка в комплекте."
-    if any(word in q for word in ["где использовать", "для чего", "применение"]) and "ведр" in q:
-        return "Вёдра подходят для хранения сыпучих продуктов, воды, для заготовок и технических нужд."
-    return None
-
-# ===== ПОИСК ПО ТОВАРАМ (fallback) =====
-def normalize(text):
-    text = text.lower().strip()
-    text = re.sub(r'[xх*]', '×', text)
-    text = text.replace(' ', '')
-    return text
-
-def extract_numbers(text):
-    return list(map(int, re.findall(r'\d+', text)))
-
-def search_products(query):
-    q = normalize(query)
-    results = []
-    for p in PRODUCTS:
-        if q in normalize(p["name"]) or q in normalize(p["desc"]):
-            results.append(p)
-    if not results:
-        numbers = extract_numbers(query)
-        if len(numbers) >= 3:
-            for p in PRODUCTS:
-                if all(str(n) in p["name"] for n in numbers[:3]):
-                    results.append(p)
-                    break
-    return results
-
-def fallback_answer(query):
-    results = search_products(query)
-    if results:
-        p = results[0]
-        return f"{p['name']} — {p['desc']}\nЦена: {p['price']:.2f} ₽"
-    return "🤔 Не нашёл таких товаров. Напишите размер (например, 600×400×400) или спросите про вёдра."
-
-# ===== ВЫЗОВ AITUNNEL =====
 def ask_aitunnel(user_msg, history=None):
     if history is None:
         history = [{"role": "system", "content": SYSTEM_PROMPT}]
@@ -112,87 +57,50 @@ def ask_aitunnel(user_msg, history=None):
         "model": "deepseek-chat",
         "messages": history,
         "temperature": 0.7,
-        "max_tokens": 1000
+        "max_tokens": 500
     }
 
     try:
-        response = requests.post(url, headers=headers, json=data, timeout=20)
+        response = requests.post(url, headers=headers, json=data, timeout=30)
         if response.status_code == 200:
             answer = response.json()["choices"][0]["message"]["content"]
             history.append({"role": "assistant", "content": answer})
             return answer, history
         else:
-            return f"❌ Ошибка AITunnel (код {response.status_code}): {response.text[:200]}", history
-    except requests.exceptions.Timeout:
-        return None, history
+            return "❌ Ошибка AITunnel. Попробуйте позже.", history
     except Exception as e:
-        return None, history
-
-# ===== ОСНОВНОЙ ОБРАБОТЧИК =====
-def run_agent(user_msg, history=None):
-    msg_lower = user_msg.lower().replace("ё", "е")
-
-    bucket_ans = get_bucket_answer(msg_lower)
-    if bucket_ans:
-        return bucket_ans, history
-
-    if msg_lower in ["привет", "здравствуйте", "добрый день", "доброе утро"]:
-        return "Здравствуйте! Я бот-консультант. Напишите размер коробки (например, 600×400×400) или спросите про вёдра.", history
-
-    if "откуда" in msg_lower and "коробк" in msg_lower:
-        return "Коробки новые, из трёхслойного гофрокартона T23, самосборные, упаковка по 10 штук.", history
-
-    is_purchase = any(w in msg_lower for w in ["покупаю", "заказываю", "беру", "оформляю"])
-    if is_purchase:
-        product_found = "неизвестный товар"
-        for p in PRODUCTS:
-            if p["name"].lower() in msg_lower:
-                product_found = p["name"]
-                break
-        try:
-            vk = VkApi(token=VK_TOKEN).get_api()
-            vk.messages.send(
-                user_id=MANAGER_VK_ID,
-                message=f"🛒 ЗАЯВКА!\nТовар: {product_found}\nСообщение: {user_msg}",
-                random_id=0
-            )
-        except:
-            pass
-
-    ai_answer, new_history = ask_aitunnel(user_msg, history)
-    if ai_answer is not None:
-        return ai_answer, new_history
-
-    return fallback_answer(user_msg), history
+        return f"❌ Ошибка: {str(e)[:100]}", history
 
 def main():
-    while True:
-        try:
-            print("🔄 Подключаюсь к VK...")
-            vk_session = VkApi(token=VK_TOKEN)
-            longpoll = VkLongPoll(vk_session, wait=25)
-            print("✅ Бот запущен (AITunnel + fallback)")
+    print("🔄 Подключаюсь к VK...")
+    vk_session = VkApi(token=VK_TOKEN)
+    longpoll = VkLongPoll(vk_session, wait=25)
+    print("✅ Бот запущен (AITunnel)")
 
-            dialogs = {}
-            for event in longpoll.listen():
-                if event.type == VkEventType.MESSAGE_NEW and event.to_me:
-                    uid = event.user_id
-                    text = event.text.strip()
-                    if not text:
-                        continue
-                    if uid not in dialogs:
-                        dialogs[uid] = []
-                    try:
-                        ans, new_hist = run_agent(text, dialogs[uid])
-                        dialogs[uid] = new_hist
-                        VkApi(token=VK_TOKEN).get_api().messages.send(
-                            user_id=uid, message=ans, random_id=0
-                        )
-                    except Exception as e:
-                        print(f"❌ Ошибка при обработке: {e}")
-        except Exception as e:
-            print(f"❌ Критическая ошибка: {e}")
-            time.sleep(15)
+    for event in longpoll.listen():
+        if event.type == VkEventType.MESSAGE_NEW and event.to_me:
+            uid = event.user_id
+            text = event.text.strip()
+            if not text:
+                continue
+
+            # Проверка на покупку (уведомление)
+            if any(w in text.lower() for w in ["покупаю", "заказываю", "беру", "оформляю"]):
+                try:
+                    vk = VkApi(token=VK_TOKEN).get_api()
+                    vk.messages.send(
+                        user_id=MANAGER_VK_ID,
+                        message=f"🛒 ЗАЯВКА!\nСообщение: {text}",
+                        random_id=0
+                    )
+                except:
+                    pass
+
+            # Ответ через ИИ
+            ans, _ = ask_aitunnel(text, None)
+            VkApi(token=VK_TOKEN).get_api().messages.send(
+                user_id=uid, message=ans, random_id=0
+            )
 
 if __name__ == "__main__":
     main()
