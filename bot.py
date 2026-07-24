@@ -4,13 +4,9 @@ import re
 from vk_api import VkApi
 from vk_api.longpoll import VkLongPoll, VkEventType
 
-# ===== НАСТРОЙКИ =====
 VK_TOKEN = "vk1.a.gB_E6NmXBEv0nRT58o_22HRpW5hhLvc7TC22VbE1M8KBZPgW7beJfO-DmSqnCNGIdVvQu17WHPKa5teVbQq3z93d-pneW6XkAmMdpNowUViS0P0enWa16qKXfA4HRRCvG74_OriEOAF6mtQeddpjDzDoooIAGWBxu84c-1Aj7wE9sGoOrOdVSS5NvnDSjfc0-QunLDoQdSsSgDFQxkIWgg"
 MANAGER_VK_ID = 29279564
-
-# 👇 ТВОЙ НОВЫЙ КЛЮЧ ИЗ CLOUD.RU (УЖЕ ВСТАВЛЕН)
 CLOUD_API_KEY = "NGFjYmFiNjItZDUwNi00MzJkLTg1YzItOGZkZTRjNjhkZGQ3.b58402e737860e9931736d464b783c41"
-# ===============================================
 
 PRODUCTS = [
     {"name": "Короба 600×400×400", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 70.0},
@@ -34,7 +30,6 @@ PRODUCTS = [
     {"name": "Ведро пластиковое пищевое 20 л с крышкой", "desc": "Б/У, из-под сиропа, идеальное состояние, без сколов, трещин и запаха. Толстый пластик (1 кг), герметичная крышка, пищевой пластик.", "price": 150.0}
 ]
 
-# ===== ЖЁСТКИЕ ПРАВИЛА (без AI) =====
 def get_bucket_answer(question):
     q = question.lower().replace("ё", "е")
     if "откуда" in q and "ведр" in q:
@@ -57,7 +52,42 @@ def get_bucket_answer(question):
         return "Объём ведра — 20 литров. Диаметр горловины стандартный, крышка в комплекте."
     return None
 
-# ===== CLOUD.RU FOUNDATION MODELS =====
+def normalize(text):
+    text = text.lower().strip()
+    text = re.sub(r'[xх*]', '×', text)
+    text = text.replace(' ', '')
+    return text
+
+def extract_numbers(text):
+    return list(map(int, re.findall(r'\d+', text)))
+
+def search_products(query):
+    q = normalize(query)
+    results = []
+    for p in PRODUCTS:
+        if q in normalize(p["name"]) or q in normalize(p["desc"]):
+            results.append(p)
+    if not results:
+        numbers = extract_numbers(query)
+        if len(numbers) >= 3:
+            for p in PRODUCTS:
+                match = True
+                for n in numbers[:3]:
+                    if str(n) not in p["name"]:
+                        match = False
+                        break
+                if match:
+                    results.append(p)
+                    break
+    return results
+
+def fallback_answer(query):
+    results = search_products(query)
+    if results:
+        p = results[0]
+        return f"{p['name']} — {p['desc']}\nЦена: {p['price']:.2f} ₽"
+    return "🤔 Не нашёл таких товаров. Попробуйте уточнить размер (например, 600×400×400) или напишите «вёдра»."
+
 def ask_cloud(user_msg, history=None):
     if history is None:
         history = [{"role": "system", "content": "Ты консультант EVA.store. Отвечай кратко и по делу."}]
@@ -76,44 +106,21 @@ def ask_cloud(user_msg, history=None):
     }
 
     try:
-        response = requests.post(url, headers=headers, json=data, timeout=30)
+        response = requests.post(url, headers=headers, json=data, timeout=10)
         if response.status_code == 200:
             answer = response.json()["choices"][0]["message"]["content"]
             history.append({"role": "assistant", "content": answer})
             return answer, history
         else:
-            print(f"⚠️ Ошибка Cloud.ru: {response.status_code} {response.text}")
-            return None, history
+            return f"❌ Ошибка Cloud.ru (код {response.status_code}): {response.text[:200]}", history
+    except requests.exceptions.Timeout:
+        return "⏱️ Превышено время ожидания ответа от Cloud.ru. Попробуйте позже.", history
     except Exception as e:
-        print(f"⚠️ Ошибка Cloud.ru: {e}")
-        return None, history
+        return f"❌ Ошибка при вызове Cloud.ru: {str(e)[:200]}", history
 
-# ===== ПОИСК ПО ТОВАРАМ (fallback) =====
-def normalize(text):
-    text = text.lower().strip()
-    text = re.sub(r'[xх*]', '×', text)
-    text = text.replace(' ', '')
-    return text
-
-def search_products(query):
-    q = normalize(query)
-    results = []
-    for p in PRODUCTS:
-        if q in normalize(p["name"]) or q in normalize(p["desc"]):
-            results.append(f"{p['name']} — {p['desc']}\nЦена: {p['price']:.2f} ₽")
-    return results
-
-def fallback_answer(query):
-    results = search_products(query)
-    if results:
-        return "\n\n".join(results[:5])
-    return "🤔 Не нашёл таких товаров. Попробуйте уточнить размер (например, 600×400×400) или напишите «вёдра»."
-
-# ===== ОСНОВНОЙ ОБРАБОТЧИК =====
 def run_agent(user_msg, history=None):
     msg_lower = user_msg.lower().replace("ё", "е")
 
-    # 1. Жёсткие правила
     bucket_ans = get_bucket_answer(msg_lower)
     if bucket_ans:
         return bucket_ans, history
@@ -124,7 +131,6 @@ def run_agent(user_msg, history=None):
     if "откуда" in msg_lower and "коробк" in msg_lower:
         return "Коробки новые, из трёхслойного гофрокартона T23, самосборные, упаковка по 10 штук.", history
 
-    # 2. Проверка на покупку (отправляем уведомление до AI)
     is_purchase = any(w in msg_lower for w in ["покупаю", "заказываю", "беру", "оформляю"])
     if is_purchase:
         product_found = "неизвестный товар"
@@ -139,15 +145,15 @@ def run_agent(user_msg, history=None):
                 message=f"🛒 ЗАЯВКА!\nТовар: {product_found}\nСообщение: {user_msg}",
                 random_id=0
             )
-        except Exception as e:
-            print(f"❌ Ошибка уведомления: {e}")
+        except:
+            pass
 
-    # 3. Попытка Cloud.ru
     ai_answer, new_history = ask_cloud(user_msg, history)
+    if ai_answer.startswith("❌") or ai_answer.startswith("⏱️"):
+        return ai_answer, new_history
     if ai_answer is not None:
         return ai_answer, new_history
 
-    # 4. Fallback — поиск по товарам
     return fallback_answer(user_msg), history
 
 def main():
@@ -156,7 +162,7 @@ def main():
             print("🔄 Подключаюсь к VK...")
             vk_session = VkApi(token=VK_TOKEN)
             longpoll = VkLongPoll(vk_session, wait=25)
-            print("✅ Бот запущен (Cloud.ru AI + жёсткие правила)")
+            print("✅ Бот запущен (Cloud.ru AI + fallback)")
 
             dialogs = {}
             for event in longpoll.listen():
