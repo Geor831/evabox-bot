@@ -32,6 +32,20 @@ PRODUCTS = [
     {"name": "Ведро пластиковое пищевое 20 л с крышкой", "desc": "Б/У, из-под сиропа, идеальное состояние, без сколов, трещин и запаха. Толстый пластик (1 кг), герметичная крышка, пищевой пластик.", "price": 150.0}
 ]
 
+# Формируем список товаров для системного промпта
+PRODUCTS_LIST = "\n".join([f"- {p['name']}: {p['price']:.2f} ₽, {p['desc']}" for p in PRODUCTS])
+
+SYSTEM_PROMPT = (
+    "Ты — консультант интернет-магазина EVA.store.\n"
+    "У нас есть следующие товары:\n"
+    f"{PRODUCTS_LIST}\n"
+    "Отвечай на вопросы о товарах, используя только эту информацию.\n"
+    "Если клиент спрашивает о цене, наличии или характеристиках — давай точный ответ из списка.\n"
+    "Если клиент пишет 'покупаю', 'заказываю', 'беру' — скажи, что заявка передана менеджеру.\n"
+    "Отвечай кратко, дружелюбно, по делу.\n"
+    "Вёдра — Б/У, из-под сиропа, состояние идеальное."
+)
+
 # ===== ЖЁСТКИЕ ПРАВИЛА (без AI) =====
 def get_bucket_answer(question):
     q = question.lower().replace("ё", "е")
@@ -86,7 +100,7 @@ def fallback_answer(query):
 # ===== ВЫЗОВ AITUNNEL =====
 def ask_aitunnel(user_msg, history=None):
     if history is None:
-        history = [{"role": "system", "content": "Ты — консультант интернет-магазина EVA.store. Отвечай кратко и по делу."}]
+        history = [{"role": "system", "content": SYSTEM_PROMPT}]
     history.append({"role": "user", "content": user_msg})
 
     url = "https://api.aitunnel.ru/v1/chat/completions"
