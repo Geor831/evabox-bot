@@ -7,7 +7,9 @@ from vk_api.longpoll import VkLongPoll, VkEventType
 # ===== НАСТРОЙКИ =====
 VK_TOKEN = "vk1.a.gB_E6NmXBEv0nRT58o_22HRpW5hhLvc7TC22VbE1M8KBZPgW7beJfO-DmSqnCNGIdVvQu17WHPKa5teVbQq3z93d-pneW6XkAmMdpNowUViS0P0enWa16qKXfA4HRRCvG74_OriEOAF6mtQeddpjDzDoooIAGWBxu84c-1Aj7wE9sGoOrOdVSS5NvnDSjfc0-QunLDoQdSsSgDFQxkIWgg"
 MANAGER_VK_ID = 29279564
-AI_ROUTER_API_KEY = "air_n-rDGlwEFZHLQ57G6q1rOW0OSP4MRDW--O5JFeQHHNc"
+
+# 👇 ТВОЙ НОВЫЙ КЛЮЧ ИЗ CLOUD.RU (УЖЕ ВСТАВЛЕН)
+CLOUD_API_KEY = "NGFjYmFiNjItZDUwNi00MzJkLTg1YzItOGZkZTRjNjhkZGQ3.b58402e737860e9931736d464b783c41"
 # ===============================================
 
 PRODUCTS = [
@@ -55,46 +57,36 @@ def get_bucket_answer(question):
         return "Объём ведра — 20 литров. Диаметр горловины стандартный, крышка в комплекте."
     return None
 
-def get_box_answer(question):
-    q = question.lower().replace("ё", "е")
-    if "откуда" in q and "коробк" in q:
-        return "Коробки новые, из трёхслойного гофрокартона T23, самосборные, упаковка по 10 штук."
-    return None
-
-# ===== AI ROUTER =====
-def ask_airouter(user_msg, history=None):
+# ===== CLOUD.RU FOUNDATION MODELS =====
+def ask_cloud(user_msg, history=None):
     if history is None:
         history = [{"role": "system", "content": "Ты консультант EVA.store. Отвечай кратко и по делу."}]
     history.append({"role": "user", "content": user_msg})
 
-    endpoints = [
-        "https://api.airouter.host/v1/chat/completions",
-        "https://api.airouter.ru/v1/chat/completions"
-    ]
+    url = "https://foundation-models.api.cloud.ru/v1/chat/completions"
     headers = {
-        "Authorization": f"Bearer {AI_ROUTER_API_KEY}",
+        "Authorization": f"Bearer {CLOUD_API_KEY}",
         "Content-Type": "application/json"
     }
-    models = ["deepseek/deepseek-chat", "deepseek-chat", "openrouter/free"]
+    data = {
+        "model": "deepseek-ai/DeepSeek-V4-Flash",
+        "messages": history,
+        "temperature": 0.7,
+        "max_tokens": 1000
+    }
 
-    for url in endpoints:
-        for model in models:
-            data = {
-                "model": model,
-                "messages": history,
-                "temperature": 0.7,
-                "max_tokens": 1000
-            }
-            try:
-                response = requests.post(url, headers=headers, json=data, timeout=30)
-                if response.status_code == 200:
-                    answer = response.json()["choices"][0]["message"]["content"]
-                    history.append({"role": "assistant", "content": answer})
-                    return answer, history
-            except Exception as e:
-                print(f"⚠️ Ошибка на {url} с моделью {model}: {e}")
-                continue
-    return None, history
+    try:
+        response = requests.post(url, headers=headers, json=data, timeout=30)
+        if response.status_code == 200:
+            answer = response.json()["choices"][0]["message"]["content"]
+            history.append({"role": "assistant", "content": answer})
+            return answer, history
+        else:
+            print(f"⚠️ Ошибка Cloud.ru: {response.status_code} {response.text}")
+            return None, history
+    except Exception as e:
+        print(f"⚠️ Ошибка Cloud.ru: {e}")
+        return None, history
 
 # ===== ПОИСК ПО ТОВАРАМ (fallback) =====
 def normalize(text):
@@ -126,12 +118,11 @@ def run_agent(user_msg, history=None):
     if bucket_ans:
         return bucket_ans, history
 
-    box_ans = get_box_answer(msg_lower)
-    if box_ans:
-        return box_ans, history
-
     if msg_lower in ["привет", "здравствуйте", "добрый день", "доброе утро"]:
         return "Здравствуйте! Я бот-консультант. Напишите, что вас интересует: коробки (укажите размер) или вёдра.", history
+
+    if "откуда" in msg_lower and "коробк" in msg_lower:
+        return "Коробки новые, из трёхслойного гофрокартона T23, самосборные, упаковка по 10 штук.", history
 
     # 2. Проверка на покупку (отправляем уведомление до AI)
     is_purchase = any(w in msg_lower for w in ["покупаю", "заказываю", "беру", "оформляю"])
@@ -151,8 +142,8 @@ def run_agent(user_msg, history=None):
         except Exception as e:
             print(f"❌ Ошибка уведомления: {e}")
 
-    # 3. Попытка AI Router
-    ai_answer, new_history = ask_airouter(user_msg, history)
+    # 3. Попытка Cloud.ru
+    ai_answer, new_history = ask_cloud(user_msg, history)
     if ai_answer is not None:
         return ai_answer, new_history
 
@@ -165,7 +156,7 @@ def main():
             print("🔄 Подключаюсь к VK...")
             vk_session = VkApi(token=VK_TOKEN)
             longpoll = VkLongPoll(vk_session, wait=25)
-            print("✅ Бот запущен (AI Router + жёсткие правила + fallback)")
+            print("✅ Бот запущен (Cloud.ru AI + жёсткие правила)")
 
             dialogs = {}
             for event in longpoll.listen():
