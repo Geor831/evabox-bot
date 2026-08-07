@@ -1,14 +1,11 @@
 import time
 import requests
-import re
 from vk_api import VkApi
 from vk_api.longpoll import VkLongPoll, VkEventType
 
-# ===== НАСТРОЙКИ =====
 VK_TOKEN = "vk1.a.gB_E6NmXBEv0nRT58o_22HRpW5hhLvc7TC22VbE1M8KBZPgW7beJfO-DmSqnCNGIdVvQu17WHPKa5teVbQq3z93d-pneW6XkAmMdpNowUViS0P0enWa16qKXfA4HRRCvG74_OriEOAF6mtQeddpjDzDoooIAGWBxu84c-1Aj7wE9sGoOrOdVSS5NvnDSjfc0-QunLDoQdSsSgDFQxkIWgg"
 MANAGER_VK_ID = 29279564
 AITUNNEL_API_KEY = "sk-aitunnel-EJz97YJpiOwnaObmGNjf6mU8cT2OdP8L"
-# ===============================================
 
 PRODUCTS = [
     {"name": "Короба 600×400×400", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 70.0},
@@ -32,18 +29,19 @@ PRODUCTS = [
     {"name": "Ведро пластиковое пищевое 20 л с крышкой", "desc": "Б/У, из-под сиропа, идеальное состояние, без сколов, трещин и запаха. Толстый пластик (1 кг), герметичная крышка, пищевой пластик.", "price": 300.0}
 ]
 
-# Формируем список товаров для ИИ
 PRODUCTS_LIST = "\n".join([f"- {p['name']}: {p['price']:.2f} ₽, {p['desc']}" for p in PRODUCTS])
 
 SYSTEM_PROMPT = (
     "Ты — продавец-консультант интернет-магазина EVA.store.\n"
     "У нас есть следующие товары с точными ценами:\n"
-    f"{PRODUCTS_LIST}\n"
-    "Отвечай на вопросы клиентов естественно, дружелюбно.\n"
-    "Если спрашивают о цене, состоянии, наличии — давай точную информацию из списка.\n"
-    "Если клиент пишет 'покупаю', 'заказываю', 'беру' — скажи, что заявка передана менеджеру.\n"
-    "Вёдра — Б/У, из-под сиропа, состояние идеальное, цена 300 ₽.\n"
-    "Отвечай кратко, но по делу."
+    f"{PRODUCTS_LIST}\n\n"
+    "Ты общаешься с клиентом, отвечаешь на все вопросы естественно, дружелюбно.\n"
+    "Ты запоминаешь, о чём говорили ранее (потому что видишь всю историю диалога).\n"
+    "Если клиент спрашивает о цене, состоянии, наличии — даёшь точную информацию из списка.\n"
+    "Если клиент пишет 'покупаю', 'заказываю', 'беру' — говоришь, что заявка передана менеджеру.\n"
+    "Вёдра — Б/У, из-под сиропа, состояние идеальное, цена 300 ₽ за штуку.\n"
+    "Отвечай кратко, по делу, но с заботой о клиенте.\n"
+    "Ты не ищешь товары по ключевым словам, а ведёшь диалог как живой консультант."
 )
 
 def ask_aitunnel(user_msg, history=None):
@@ -59,8 +57,8 @@ def ask_aitunnel(user_msg, history=None):
     data = {
         "model": "deepseek-chat",
         "messages": history,
-        "temperature": 0.7,
-        "max_tokens": 500
+        "temperature": 0.8,
+        "max_tokens": 600
     }
 
     try:
@@ -78,7 +76,7 @@ def main():
     print("🔄 Подключаюсь к VK...")
     vk_session = VkApi(token=VK_TOKEN)
     longpoll = VkLongPoll(vk_session, wait=25)
-    print("✅ Бот запущен (AITunnel + память)")
+    print("✅ Бот запущен (AITunnel — чистый ИИ, без поиска)")
 
     dialogs = {}
 
@@ -89,7 +87,7 @@ def main():
             if not text:
                 continue
 
-            # Если есть признаки покупки — отправляем уведомление менеджеру
+            # Уведомление менеджеру при покупке
             if any(w in text.lower() for w in ["покупаю", "заказываю", "беру", "оформляю"]):
                 try:
                     vk = VkApi(token=VK_TOKEN).get_api()
@@ -101,16 +99,13 @@ def main():
                 except:
                     pass
 
-            # Получаем или создаём историю для пользователя
+            # История диалога для пользователя
             if uid not in dialogs:
                 dialogs[uid] = [{"role": "system", "content": SYSTEM_PROMPT}]
-            history = dialogs[uid]
 
-            # Запрос к ИИ
-            answer, new_history = ask_aitunnel(text, history)
+            answer, new_history = ask_aitunnel(text, dialogs[uid])
             dialogs[uid] = new_history
 
-            # Отправка ответа
             VkApi(token=VK_TOKEN).get_api().messages.send(
                 user_id=uid, message=answer, random_id=0
             )
