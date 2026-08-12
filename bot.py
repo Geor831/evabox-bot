@@ -8,7 +8,7 @@ from cdek.apps.tariff import TariffCodeRequest
 
 # ===== НАСТРОЙКИ =====
 VK_TOKEN = "vk1.a.gB_E6NmXBEv0nRT58o_22HRpW5hhLvc7TC22VbE1M8KBZPgW7beJfO-DmSqnCNGIdVvQu17WHPKa5teVbQq3z93d-pneW6XkAmMdpNowUViS0P0enWa16qKXfA4HRRCvG74_OriEOAF6mtQeddpjDzDoooIAGWBxu84c-1Aj7wE9sGoOrOdVSS5NvnDSjfc0-QunLDoQdSsSgDFQxkIWgg"
-MANAGER_VK_ID = 29279564
+MANAGER_IDS = [29279564, 598512076]  # два менеджера
 AITUNNEL_API_KEY = "sk-aitunnel-EJz97YJpiOwnaObmGNjf6mU8cT2OdP8L"
 
 # ===== НАСТРОЙКИ СДЭК =====
@@ -19,23 +19,23 @@ SENDER_CITY_CODE = 1177  # Владимир
 
 PRODUCTS = [
     {"name": "Короба 600×400×400", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 70.0, "weight": 500},
-    {"name": "Короба 600×400×200", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 68.0, "weight": 400},
-    {"name": "Короба 200×300×300", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 60.0, "weight": 400},
-    {"name": "Короба 95×95×103", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 22.0, "weight": 200},
-    {"name": "Короба 50×50×225", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 16.0, "weight": 200},
-    {"name": "Короба 100×100×290", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 12.09, "weight": 200},
-    {"name": "Короба 1040×165×45", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 29.04, "weight": 600},
-    {"name": "Короба 110×110×335", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 20.3, "weight": 300},
-    {"name": "Короба 165×105×55", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 11.08, "weight": 200},
-    {"name": "Короба 170×170×80", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 9.96, "weight": 200},
-    {"name": "Короба 220×130×130*", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 9.99, "weight": 200},
-    {"name": "Короба 220×130×180", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 11.47, "weight": 200},
-    {"name": "Короба 240×135×50", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 16.98, "weight": 300},
-    {"name": "Короба 280×150×350", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 23.41, "weight": 400},
-    {"name": "Короба 300×200×300", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 23.55, "weight": 400},
-    {"name": "Короба 380×240×290", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 33.0, "weight": 500},
-    {"name": "Короба 590×195×120", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 57.72, "weight": 500},
-    {"name": "Короба 785×235×215", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 42.87, "weight": 600},
+    {"name": "Корoba 600×400×200", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 68.0, "weight": 400},
+    {"name": "Корoba 200×300×300", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 60.0, "weight": 400},
+    {"name": "Корoba 95×95×103", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 22.0, "weight": 200},
+    {"name": "Корoba 50×50×225", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 16.0, "weight": 200},
+    {"name": "Корoba 100×100×290", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 12.09, "weight": 200},
+    {"name": "Корoba 1040×165×45", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 29.04, "weight": 600},
+    {"name": "Корoba 110×110×335", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 20.3, "weight": 300},
+    {"name": "Корoba 165×105×55", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 11.08, "weight": 200},
+    {"name": "Корoba 170×170×80", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 9.96, "weight": 200},
+    {"name": "Корoba 220×130×130*", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 9.99, "weight": 200},
+    {"name": "Корoba 220×130×180", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 11.47, "weight": 200},
+    {"name": "Корoba 240×135×50", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 16.98, "weight": 300},
+    {"name": "Корoba 280×150×350", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 23.41, "weight": 400},
+    {"name": "Корoba 300×200×300", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 23.55, "weight": 400},
+    {"name": "Корoba 380×240×290", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 33.0, "weight": 500},
+    {"name": "Корoba 590×195×120", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 57.72, "weight": 500},
+    {"name": "Корoba 785×235×215", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 42.87, "weight": 600},
     {"name": "Ведро пластиковое пищевое 20 л с крышкой", "desc": "Б/У, из-под сиропа, идеальное состояние, без сколов, трещин и запаха. Толстый пластик (1 кг), герметичная крышка, пищевой пластик.", "price": 300.0, "weight": 800}
 ]
 
@@ -143,7 +143,7 @@ def main():
     vk_session = VkApi(token=VK_TOKEN)
     longpoll = VkLongPoll(vk_session, wait=90)
     vk = vk_session.get_api()
-    print("✅ Бот запущен (с управлением через фразы менеджера)")
+    print("✅ Бот запущен (с поддержкой нескольких менеджеров)")
 
     dialogs = {}
     order_data = {}
@@ -152,47 +152,29 @@ def main():
     for event in longpoll.listen():
         if event.type == VkEventType.MESSAGE_NEW and event.to_me:
             uid = event.user_id
+            from_id = event.from_id
+            peer_id = event.peer_id
             text = event.text.strip()
             if not text:
                 continue
 
-            # === ЕСЛИ ПИШЕТ МЕНЕДЖЕР ===
-            if uid == MANAGER_VK_ID:
-                # Получаем peer_id (кому адресовано сообщение)
-                try:
-                    msg_info = vk.messages.getById(message_ids=event.message_id)
-                    if msg_info and 'items' in msg_info and len(msg_info['items']) > 0:
-                        peer_id = msg_info['items'][0]['peer_id']
-                    else:
-                        # Если не удалось получить, пропускаем
-                        print("⚠️ Не удалось определить peer_id для сообщения менеджера")
-                        continue
-                except Exception as e:
-                    print(f"⚠️ Ошибка получения peer_id: {e}")
-                    continue
-
-                # Проверяем команды
+            # === ЕСЛИ СООБЩЕНИЕ ОТ СООБЩЕСТВА (менеджер пишет от имени сообщества) ===
+            if from_id < 0:
                 text_lower = text.lower()
+                # Команды менеджера
                 if "менеджер на связи" in text_lower or "я на связи" in text_lower or "на связи" in text_lower:
                     disabled_users.add(peer_id)
-                    vk.messages.send(
-                        user_id=MANAGER_VK_ID,
-                        message=f"✅ Бот отключён для пользователя {peer_id}",
-                        random_id=0
-                    )
+                    # Отправим подтверждение менеджеру в личку? Но мы не знаем ID менеджера, поэтому не отправляем.
+                    # Можно отправить в тот же диалог, но это увидит клиент. Лучше не отправлять.
                     continue
                 elif "ии агент на связи" in text_lower or "агент на связи" in text_lower:
                     disabled_users.discard(peer_id)
-                    vk.messages.send(
-                        user_id=MANAGER_VK_ID,
-                        message=f"✅ Бот включён для пользователя {peer_id}",
-                        random_id=0
-                    )
                     continue
-                # Если менеджер пишет что-то другое, бот пропускает (он не отвечает на сообщения менеджера)
+                # Если это сообщение от сообщества, но не команда, мы его игнорируем (не отвечаем)
                 continue
 
-            # === ЕСЛИ КЛИЕНТ В ОТКЛЮЧЁННЫХ ===
+            # === ОБЫЧНЫЕ КЛИЕНТЫ ===
+            # Если клиент в отключённых, бот молчит
             if uid in disabled_users:
                 print(f"⏸️ Бот отключён для {uid}")
                 continue
@@ -319,21 +301,23 @@ def main():
                 phone_found = extract_phone(text)
                 if phone_found:
                     order_data[uid]["phone"] = phone_found
-                    try:
-                        vk.messages.send(
-                            user_id=MANAGER_VK_ID,
-                            message=(
-                                f"🛒 ЗАЯВКА от {user_name}!\n"
-                                f"Товар: {order_data[uid]['product']['name']}\n"
-                                f"Город: {order_data[uid]['city']}\n"
-                                f"Телефон: {phone_found}\n"
-                                f"Доставка: {order_data[uid].get('delivery_price', 0):.2f} ₽ ({order_data[uid].get('delivery_days', '')} дн.)\n"
-                                f"Итоговая сумма: {order_data[uid].get('total', 0):.2f} ₽"
-                            ),
-                            random_id=0
-                        )
-                    except:
-                        pass
+                    # Отправляем уведомление всем менеджерам
+                    for manager_id in MANAGER_IDS:
+                        try:
+                            vk.messages.send(
+                                user_id=manager_id,
+                                message=(
+                                    f"🛒 ЗАЯВКА от {user_name}!\n"
+                                    f"Товар: {order_data[uid]['product']['name']}\n"
+                                    f"Город: {order_data[uid]['city']}\n"
+                                    f"Телефон: {phone_found}\n"
+                                    f"Доставка: {order_data[uid].get('delivery_price', 0):.2f} ₽ ({order_data[uid].get('delivery_days', '')} дн.)\n"
+                                    f"Итоговая сумма: {order_data[uid].get('total', 0):.2f} ₽"
+                                ),
+                                random_id=0
+                            )
+                        except:
+                            pass
                     answer = "✅ Заявка оформлена! Менеджер свяжется с вами по указанному телефону. Спасибо за покупку! 😊"
                     vk.messages.send(user_id=uid, message=answer, random_id=0)
                     if uid not in dialogs:
