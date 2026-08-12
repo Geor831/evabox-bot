@@ -142,11 +142,12 @@ def main():
     print("🔄 Подключаюсь к VK...")
     vk_session = VkApi(token=VK_TOKEN)
     longpoll = VkLongPoll(vk_session, wait=90)
-    print("✅ Бот запущен (с защитой от 504)")
+    vk = vk_session.get_api()
+    print("✅ Бот запущен (с управлением через фразы менеджера)")
 
     dialogs = {}
     order_data = {}
-    last_manager_msg = {}
+    disabled_users = set()  # пользователи, для которых бот отключён
 
     for event in longpoll.listen():
         if event.type == VkEventType.MESSAGE_NEW and event.to_me:
@@ -155,18 +156,50 @@ def main():
             if not text:
                 continue
 
+            # === ЕСЛИ ПИШЕТ МЕНЕДЖЕР ===
             if uid == MANAGER_VK_ID:
-                for user_id in dialogs.keys():
-                    last_manager_msg[user_id] = time.time()
+                # Получаем peer_id (кому адресовано сообщение)
+                try:
+                    msg_info = vk.messages.getById(message_ids=event.message_id)
+                    if msg_info and 'items' in msg_info and len(msg_info['items']) > 0:
+                        peer_id = msg_info['items'][0]['peer_id']
+                    else:
+                        # Если не удалось получить, пропускаем
+                        print("⚠️ Не удалось определить peer_id для сообщения менеджера")
+                        continue
+                except Exception as e:
+                    print(f"⚠️ Ошибка получения peer_id: {e}")
+                    continue
+
+                # Проверяем команды
+                text_lower = text.lower()
+                if "менеджер на связи" in text_lower or "я на связи" in text_lower or "на связи" in text_lower:
+                    disabled_users.add(peer_id)
+                    vk.messages.send(
+                        user_id=MANAGER_VK_ID,
+                        message=f"✅ Бот отключён для пользователя {peer_id}",
+                        random_id=0
+                    )
+                    continue
+                elif "ии агент на связи" in text_lower or "агент на связи" in text_lower:
+                    disabled_users.discard(peer_id)
+                    vk.messages.send(
+                        user_id=MANAGER_VK_ID,
+                        message=f"✅ Бот включён для пользователя {peer_id}",
+                        random_id=0
+                    )
+                    continue
+                # Если менеджер пишет что-то другое, бот пропускает (он не отвечает на сообщения менеджера)
                 continue
 
-            manager_recent = last_manager_msg.get(uid, 0)
-            if time.time() - manager_recent < 7200:
-                print(f"⏸️ Бот молчит (менеджер в диалоге) для {uid}")
+            # === ЕСЛИ КЛИЕНТ В ОТКЛЮЧЁННЫХ ===
+            if uid in disabled_users:
+                print(f"⏸️ Бот отключён для {uid}")
                 continue
 
+            # Получаем имя клиента
             try:
-                user_info = vk_session.get_api().users.get(user_id=uid)
+                user_info = vk.users.get(user_id=uid)
                 user_name = user_info[0]['first_name']
             except:
                 user_name = "Клиент"
@@ -178,7 +211,7 @@ def main():
 
             if city_found and is_delivery_question:
                 # 1. Отправляем промежуточный ответ
-                vk_session.get_api().messages.send(
+                vk.messages.send(
                     user_id=uid,
                     message="⏳ Сейчас посчитаю стоимость доставки от Владимира до вашего города...",
                     random_id=0
@@ -199,7 +232,7 @@ def main():
                                     break
                     if not product:
                         product = PRODUCTS[-1]
-                # 3. Рассчитываем доставку (долго, но клиент уже получил первый ответ)
+                # 3. Рассчитываем доставку
                 result = calculate_delivery(city_found, product["weight"])
                 if "error" in result:
                     answer = f"❌ Не удалось рассчитать доставку: {result['error']}"
@@ -220,7 +253,7 @@ def main():
                         f"💰 Итого: {total:.2f} ₽\n\n"
                         f"Для оформления заказа нужен ваш номер телефона. Напишите его, пожалуйста."
                     )
-                vk_session.get_api().messages.send(user_id=uid, message=answer, random_id=0)
+                vk.messages.send(user_id=uid, message=answer, random_id=0)
                 if uid not in dialogs:
                     dialogs[uid] = [{"role": "system", "content": SYSTEM_PROMPT}]
                 dialogs[uid].append({"role": "assistant", "content": answer})
@@ -241,7 +274,7 @@ def main():
                         product = PRODUCTS[-1]
                     order_data[uid]["product"] = product
                     answer = "Отлично! Для расчёта доставки скажите, из какого вы города?"
-                    vk_session.get_api().messages.send(user_id=uid, message=answer, random_id=0)
+                    vk.messages.send(user_id=uid, message=answer, random_id=0)
                     if uid not in dialogs:
                         dialogs[uid] = [{"role": "system", "content": SYSTEM_PROMPT}]
                     dialogs[uid].append({"role": "assistant", "content": answer})
@@ -253,7 +286,7 @@ def main():
                     order_data[uid]["city"] = city_found
                     product = order_data[uid]["product"]
                     # Сразу отправим промежуточный ответ
-                    vk_session.get_api().messages.send(
+                    vk.messages.send(
                         user_id=uid,
                         message="⏳ Сейчас посчитаю доставку...",
                         random_id=0
@@ -273,7 +306,7 @@ def main():
                             f"💰 Итого: {total:.2f} ₽\n\n"
                             f"Для оформления заказа нужен ваш номер телефона. Напишите его, пожалуйста."
                         )
-                    vk_session.get_api().messages.send(user_id=uid, message=answer, random_id=0)
+                    vk.messages.send(user_id=uid, message=answer, random_id=0)
                     if uid not in dialogs:
                         dialogs[uid] = [{"role": "system", "content": SYSTEM_PROMPT}]
                     dialogs[uid].append({"role": "assistant", "content": answer})
@@ -287,7 +320,6 @@ def main():
                 if phone_found:
                     order_data[uid]["phone"] = phone_found
                     try:
-                        vk = VkApi(token=VK_TOKEN).get_api()
                         vk.messages.send(
                             user_id=MANAGER_VK_ID,
                             message=(
@@ -303,7 +335,7 @@ def main():
                     except:
                         pass
                     answer = "✅ Заявка оформлена! Менеджер свяжется с вами по указанному телефону. Спасибо за покупку! 😊"
-                    vk_session.get_api().messages.send(user_id=uid, message=answer, random_id=0)
+                    vk.messages.send(user_id=uid, message=answer, random_id=0)
                     if uid not in dialogs:
                         dialogs[uid] = [{"role": "system", "content": SYSTEM_PROMPT}]
                     dialogs[uid].append({"role": "assistant", "content": answer})
@@ -313,7 +345,7 @@ def main():
                     # Если не похоже на телефон, переспрашиваем
                     if not any(w in text.lower() for w in ["да", "нет", "ок", "хорошо"]):
                         answer = "Для оформления заказа нужен ваш номер телефона. Напишите, пожалуйста."
-                        vk_session.get_api().messages.send(user_id=uid, message=answer, random_id=0)
+                        vk.messages.send(user_id=uid, message=answer, random_id=0)
                         if uid not in dialogs:
                             dialogs[uid] = [{"role": "system", "content": SYSTEM_PROMPT}]
                         dialogs[uid].append({"role": "assistant", "content": answer})
@@ -325,7 +357,7 @@ def main():
 
             answer, new_history = ask_aitunnel(text, dialogs[uid])
             dialogs[uid] = new_history
-            vk_session.get_api().messages.send(user_id=uid, message=answer, random_id=0)
+            vk.messages.send(user_id=uid, message=answer, random_id=0)
 
 if __name__ == "__main__":
     main()
