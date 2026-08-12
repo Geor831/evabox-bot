@@ -83,6 +83,19 @@ def calculate_delivery(city_name: str, weight_grams: int) -> dict:
         print(f"⚠️ Ошибка расчёта доставки: {e}")
         return {"error": str(e)}
 
+def extract_city(text: str) -> str:
+    text_lower = text.lower()
+    for city in CITY_CODES.keys():
+        if city in text_lower:
+            return city
+    return None
+
+def extract_phone(text: str) -> str:
+    phone = re.search(r'\+?\d[\d\s\-\(\)]{7,}\d', text)
+    if phone:
+        return phone.group().strip()
+    return None
+
 def ask_aitunnel(user_msg, history=None):
     if history is None:
         history = [{"role": "system", "content": SYSTEM_PROMPT}]
@@ -110,54 +123,30 @@ def ask_aitunnel(user_msg, history=None):
         return f"❌ Ошибка: {str(e)[:100]}", history
 
 SYSTEM_PROMPT = (
-    "Ты — ИИ-продавец интернет-магазина EVA.store.\n"
-    "Ты общаешься с клиентом как живой человек, без шаблонов.\n"
-    "Твоя задача — помочь клиенту купить товар и оформить заказ с доставкой.\n\n"
-    "ТОВАРЫ (с точными ценами и весом в граммах):\n"
+    "Ты — продавец-консультант интернет-магазина EVA.store.\n"
+    "Ты помогаешь клиентам с выбором и оформлением заказов.\n\n"
+    "ТОВАРЫ (с ценами и весом в граммах):\n"
     f"{PRODUCTS_LIST}\n\n"
-    "АЛГОРИТМ РАБОТЫ С ЗАКАЗОМ (ТЫ ДОЛЖЕН ЕГО СОБЛЮДАТЬ):\n"
-    "1. Когда клиент выражает желание купить (любыми словами), ты должен узнать его город.\n"
-    "2. Когда клиент назвал город, ты должен рассчитать доставку. Для этого ты можешь использовать функцию calculate_delivery(city, weight). В ответе ты пишешь: 'Сейчас посчитаю доставку...' и затем показываешь итоговую цену (товар + доставка).\n"
-    "3. После расчёта доставки ты должен попросить номер телефона для оформления заказа.\n"
-    "4. Когда клиент дал номер телефона, ты должен подтвердить заявку и сказать, что менеджер свяжется.\n"
-    "ВАЖНО: Никогда не передавай заявку менеджеру без расчёта доставки и без телефона.\n"
-    "Если клиент спрашивает про доставку в любой момент — пересчитай и покажи сумму.\n\n"
-    "ТЫ ОБЯЗАН ИСПОЛЬЗОВАТЬ ТЕХНИКИ ПРОДАЖ:\n"
-    "- Выявляй потребности, задавай вопросы.\n"
-    "- Работай с возражениями (если клиент говорит 'дорого' — объясни ценность).\n"
-    "- Предлагай дополнительные товары (апселл).\n"
-    "- Используй социальное доказательство, сторителлинг.\n"
-    "- Создавай дефицит, если товар ограничен.\n"
-    "- Завершай сделку уверенно.\n\n"
-    "ОБЩИЕ ПРАВИЛА:\n"
-    "- Отвечай кратко, дружелюбно, используй эмодзи (😊, 👍, 📦).\n"
-    "- Помни историю диалога.\n"
-    "- Если не знаешь точного ответа — скажи, что уточнишь у менеджера."
+    "АЛГОРИТМ РАБОТЫ (ты должен его соблюдать):\n"
+    "1. Если клиент хочет купить — узнай его город.\n"
+    "2. Когда клиент назвал город — рассчитай доставку и покажи итог (товар + доставка).\n"
+    "3. После расчёта спроси номер телефона.\n"
+    "4. Когда клиент дал телефон — сообщи, что заявка передана менеджеру.\n"
+    "5. Если клиент спрашивает про доставку в любой момент — пересчитай и покажи сумму.\n"
+    "Никогда не передавай заявку без расчёта доставки и без телефона.\n\n"
+    "Используй техники продаж: выявляй потребности, работай с возражениями, предлагай доп. товары.\n"
+    "Отвечай кратко, дружелюбно, с эмодзи."
 )
-
-def extract_city(text: str) -> str:
-    text_lower = text.lower()
-    for city in CITY_CODES.keys():
-        if city in text_lower:
-            return city
-    return None
-
-def extract_phone(text: str) -> str:
-    phone = re.search(r'\+?\d[\d\s\-\(\)]{7,}\d', text)
-    if phone:
-        return phone.group().strip()
-    return None
 
 def main():
     print("🔄 Подключаюсь к VK...")
     vk_session = VkApi(token=VK_TOKEN)
     longpoll = VkLongPoll(vk_session, wait=25)
-    print("✅ Бот запущен (всё на ИИ)")
+    print("✅ Бот запущен (СДЭК + ИИ)")
 
     dialogs = {}
-    # Для передачи заявки менеджеру будем хранить данные заказа в order_context
-    order_context = {}  # uid -> dict с полями city, phone, product, delivery_price, total
-    last_message_from_manager = {}
+    order_data = {}  # {uid: {"city": None, "phone": None, "product": None, "delivery_price": 0, "total": 0, "delivery_days": ""}}
+    last_manager_msg = {}
 
     for event in longpoll.listen():
         if event.type == VkEventType.MESSAGE_NEW and event.to_me:
@@ -168,10 +157,10 @@ def main():
 
             if uid == MANAGER_VK_ID:
                 for user_id in dialogs.keys():
-                    last_message_from_manager[user_id] = time.time()
+                    last_manager_msg[user_id] = time.time()
                 continue
 
-            manager_recent = last_message_from_manager.get(uid, 0)
+            manager_recent = last_manager_msg.get(uid, 0)
             if time.time() - manager_recent < 7200:
                 print(f"⏸️ Бот молчит (менеджер в диалоге) для {uid}")
                 continue
@@ -182,53 +171,101 @@ def main():
             except:
                 user_name = "Клиент"
 
-            # Проверяем, есть ли активный заказ в процессе
-            order = order_context.get(uid, {})
-            city = order.get("city")
-            phone = order.get("phone")
-            product = order.get("product")
+            # === 1. ПРОВЕРКА НА ГОРОД И ДОСТАВКУ (ВСЕГДА) ===
+            city_found = extract_city(text)
+            delivery_keywords = ["доставк", "привезти", "сдэк", "курьер", "отправк", "транспортн", "сколько", "цена"]
+            is_delivery_question = any(w in text.lower() for w in delivery_keywords)
 
-            # Если заказ не начат, но похоже на покупку — начинаем
-            if not order:
-                # Проверяем, есть ли в тексте явное намерение купить или упоминание товара
-                if any(word in text.lower() for word in ["купить", "заказать", "беру", "покупаю", "оформить", "заказ", "приобрести", "хочу", "нужны", "интересует"]) or any(p["name"].lower() in text.lower() for p in PRODUCTS):
-                    # Начинаем заказ
-                    order_context[uid] = {"city": None, "phone": None, "product": None}
-                    order = order_context[uid]
+            # Если есть город и запрос доставки — рассчитываем немедленно
+            if city_found and is_delivery_question:
+                # Определяем товар: сначала из контекста, потом из истории, потом по умолчанию
+                product = None
+                if uid in order_data and order_data[uid].get("product"):
+                    product = order_data[uid]["product"]
+                else:
+                    # Ищем последний упомянутый товар в истории
+                    if uid in dialogs:
+                        for msg in reversed(dialogs[uid]):
+                            if msg["role"] == "user":
+                                for p in PRODUCTS:
+                                    if p["name"].lower() in msg["content"].lower() or any(w in msg["content"].lower() for w in ["ведр", "короб"]):
+                                        product = p
+                                        break
+                                if product:
+                                    break
+                    if not product:
+                        product = PRODUCTS[-1]  # по умолчанию вёдра
+
+                result = calculate_delivery(city_found, product["weight"])
+                if "error" in result:
+                    answer = f"❌ Не удалось рассчитать доставку: {result['error']}"
+                else:
+                    total = product["price"] + result["price"]
+                    # Сохраняем в order_data для последующей заявки
+                    if uid not in order_data:
+                        order_data[uid] = {}
+                    order_data[uid]["city"] = city_found
+                    order_data[uid]["product"] = product
+                    order_data[uid]["delivery_price"] = result["price"]
+                    order_data[uid]["total"] = total
+                    order_data[uid]["delivery_days"] = f"{result['days_min']}-{result['days_max']}"
+                    order_data[uid]["phone"] = None
+                    answer = (
+                        f"✅ Доставка от Владимира до {city_found.capitalize()}:\n"
+                        f"📦 Товар: {product['name']} — {product['price']:.2f} ₽\n"
+                        f"🚚 Доставка: {result['price']:.2f} ₽ ({result['days_min']}-{result['days_max']} дн.)\n"
+                        f"💰 Итого: {total:.2f} ₽\n\n"
+                        f"Для оформления заказа нужен ваш номер телефона. Напишите его, пожалуйста."
+                    )
+                vk_session.get_api().messages.send(user_id=uid, message=answer, random_id=0)
+                if uid not in dialogs:
+                    dialogs[uid] = [{"role": "system", "content": SYSTEM_PROMPT}]
+                dialogs[uid].append({"role": "assistant", "content": answer})
+                continue
+
+            # === 2. ОБЫЧНЫЙ ПРОЦЕСС ЗАКАЗА ===
+            # Если заказ не начат и есть намерение купить — начинаем
+            if uid not in order_data or not order_data[uid].get("city"):
+                buy_keywords = ["купить", "заказать", "беру", "покупаю", "оформить", "заказ", "приобрести", "хочу", "нужны", "интересует"]
+                if any(w in text.lower() for w in buy_keywords) or any(p["name"].lower() in text.lower() for p in PRODUCTS):
+                    if uid not in order_data:
+                        order_data[uid] = {"city": None, "phone": None, "product": None, "delivery_price": 0, "total": 0, "delivery_days": ""}
                     # Определяем товар
+                    product = None
                     for p in PRODUCTS:
                         if p["name"].lower() in text.lower() or any(w in text.lower() for w in ["ведр", "короб"]):
-                            order["product"] = p
+                            product = p
                             break
-                    if not order["product"]:
-                        order["product"] = PRODUCTS[-1]  # по умолчанию вёдра
-                    # Спрашиваем город через ИИ
-                    answer, new_history = ask_aitunnel(text, dialogs.get(uid, []))
-                    dialogs[uid] = new_history
+                    if not product:
+                        product = PRODUCTS[-1]
+                    order_data[uid]["product"] = product
+                    # Спрашиваем город
+                    answer = "Отлично! Для расчёта доставки скажите, из какого вы города?"
                     vk_session.get_api().messages.send(user_id=uid, message=answer, random_id=0)
+                    if uid not in dialogs:
+                        dialogs[uid] = [{"role": "system", "content": SYSTEM_PROMPT}]
+                    dialogs[uid].append({"role": "assistant", "content": answer})
                     continue
 
-            # Если заказ начат, но город не определён — пытаемся извлечь город из текста
-            if order and not city:
+            # Если заказ начат, но город не определён
+            if uid in order_data and not order_data[uid].get("city"):
                 city_found = extract_city(text)
                 if city_found:
-                    order["city"] = city_found
-                    # Рассчитываем доставку
-                    weight = order["product"]["weight"]
-                    result = calculate_delivery(city_found, weight)
+                    order_data[uid]["city"] = city_found
+                    product = order_data[uid]["product"]
+                    result = calculate_delivery(city_found, product["weight"])
                     if "error" in result:
                         answer = f"❌ Не удалось рассчитать доставку: {result['error']}"
                     else:
-                        total_price = order["product"]["price"] + result["price"]
-                        order["delivery_price"] = result["price"]
-                        order["total"] = total_price
-                        order["delivery_days"] = f"{result['days_min']}-{result['days_max']}"
-                        # Формируем ответ с расчётом
+                        total = product["price"] + result["price"]
+                        order_data[uid]["delivery_price"] = result["price"]
+                        order_data[uid]["total"] = total
+                        order_data[uid]["delivery_days"] = f"{result['days_min']}-{result['days_max']}"
                         answer = (
                             f"✅ Доставка от Владимира до {city_found.capitalize()}:\n"
-                            f"📦 Товар: {order['product']['name']} — {order['product']['price']:.2f} ₽\n"
+                            f"📦 Товар: {product['name']} — {product['price']:.2f} ₽\n"
                             f"🚚 Доставка: {result['price']:.2f} ₽ ({result['days_min']}-{result['days_max']} дн.)\n"
-                            f"💰 Итого: {total_price:.2f} ₽\n\n"
+                            f"💰 Итого: {total:.2f} ₽\n\n"
                             f"Для оформления заказа нужен ваш номер телефона. Напишите его, пожалуйста."
                         )
                     vk_session.get_api().messages.send(user_id=uid, message=answer, random_id=0)
@@ -237,15 +274,15 @@ def main():
                     dialogs[uid].append({"role": "assistant", "content": answer})
                     continue
                 else:
-                    # Если город не найден, но клиент написал что-то, что не является городом,
-                    # пропускаем через ИИ — он может сам спросить город.
-                    pass  # перейдём к обычному диалогу
+                    # Если город не найден, но есть запрос доставки — переспрашиваем (уже обработано выше)
+                    # Если просто что-то другое — через ИИ (будет в конце)
+                    pass
 
             # Если заказ начат, город есть, но нет телефона
-            if order and city and not phone:
+            if uid in order_data and order_data[uid].get("city") and not order_data[uid].get("phone"):
                 phone_found = extract_phone(text)
                 if phone_found:
-                    order["phone"] = phone_found
+                    order_data[uid]["phone"] = phone_found
                     # Отправляем заявку менеджеру
                     try:
                         vk = VkApi(token=VK_TOKEN).get_api()
@@ -253,11 +290,11 @@ def main():
                             user_id=MANAGER_VK_ID,
                             message=(
                                 f"🛒 ЗАЯВКА от {user_name}!\n"
-                                f"Товар: {order['product']['name']}\n"
-                                f"Город: {city}\n"
+                                f"Товар: {order_data[uid]['product']['name']}\n"
+                                f"Город: {order_data[uid]['city']}\n"
                                 f"Телефон: {phone_found}\n"
-                                f"Доставка: {order.get('delivery_price', 0):.2f} ₽ ({order.get('delivery_days', '')} дн.)\n"
-                                f"Итоговая сумма: {order.get('total', 0):.2f} ₽"
+                                f"Доставка: {order_data[uid].get('delivery_price', 0):.2f} ₽ ({order_data[uid].get('delivery_days', '')} дн.)\n"
+                                f"Итоговая сумма: {order_data[uid].get('total', 0):.2f} ₽"
                             ),
                             random_id=0
                         )
@@ -268,37 +305,26 @@ def main():
                     if uid not in dialogs:
                         dialogs[uid] = [{"role": "system", "content": SYSTEM_PROMPT}]
                     dialogs[uid].append({"role": "assistant", "content": answer})
-                    # Удаляем заказ
-                    del order_context[uid]
+                    # Удаляем данные заказа, чтобы можно было начать новый
+                    del order_data[uid]
                     continue
+                else:
+                    # Если не похоже на телефон, переспрашиваем через ИИ или напрямую
+                    if not any(w in text.lower() for w in ["да", "нет", "ок", "хорошо"]):
+                        answer = "Для оформления заказа нужен ваш номер телефона. Напишите, пожалуйста."
+                        vk_session.get_api().messages.send(user_id=uid, message=answer, random_id=0)
+                        if uid not in dialogs:
+                            dialogs[uid] = [{"role": "system", "content": SYSTEM_PROMPT}]
+                        dialogs[uid].append({"role": "assistant", "content": answer})
+                        continue
 
-            # === ОБЫЧНЫЙ ДИАЛОГ (в том числе для уточнения города/телефона через ИИ) ===
+            # === 3. ОБЫЧНЫЙ ДИАЛОГ ЧЕРЕЗ ИИ ===
             if uid not in dialogs:
                 dialogs[uid] = [{"role": "system", "content": SYSTEM_PROMPT}]
 
-            # Если заказ начат, но город не определён, и клиент написал что-то новое — передаём ИИ, но он должен спросить город
-            if order and not city:
-                # Проверяем, есть ли в тексте город (если нет — ИИ сам спросит)
-                answer, new_history = ask_aitunnel(text, dialogs[uid])
-                dialogs[uid] = new_history
-                vk_session.get_api().messages.send(user_id=uid, message=answer, random_id=0)
-                continue
-
-            # Если заказ начат, город есть, но нет телефона, и клиент не дал телефон — ИИ должен спросить
-            if order and city and not phone:
-                # Проверяем, похоже ли на телефон
-                if not extract_phone(text):
-                    answer, new_history = ask_aitunnel(text, dialogs[uid])
-                    dialogs[uid] = new_history
-                    vk_session.get_api().messages.send(user_id=uid, message=answer, random_id=0)
-                    continue
-
-            # Если заказ не активен или завершён — обычный ИИ-диалог
             answer, new_history = ask_aitunnel(text, dialogs[uid])
             dialogs[uid] = new_history
-            vk_session.get_api().messages.send(
-                user_id=uid, message=answer, random_id=0
-            )
+            vk_session.get_api().messages.send(user_id=uid, message=answer, random_id=0)
 
 if __name__ == "__main__":
     main()
