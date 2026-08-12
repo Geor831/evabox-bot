@@ -3,8 +3,6 @@ import requests
 import re
 from vk_api import VkApi
 from vk_api.longpoll import VkLongPoll, VkEventType
-from cdek import CdekClient
-from cdek.apps.tariff import TariffCodeRequest
 
 # ===== НАСТРОЙКИ =====
 VK_TOKEN = "vk1.a.gB_E6NmXBEv0nRT58o_22HRpW5hhLvc7TC22VbE1M8KBZPgW7beJfO-DmSqnCNGIdVvQu17WHPKa5teVbQq3z93d-pneW6XkAmMdpNowUViS0P0enWa16qKXfA4HRRCvG74_OriEOAF6mtQeddpjDzDoooIAGWBxu84c-1Aj7wE9sGoOrOdVSS5NvnDSjfc0-QunLDoQdSsSgDFQxkIWgg"
@@ -50,16 +48,45 @@ CITY_CODES = {
 
 PRODUCTS_LIST = "\n".join([f"- {p['name']}: {p['price']:.2f} ₽, вес ~{p['weight']}г, {p['desc']}" for p in PRODUCTS])
 
+def get_cdek_token():
+    """Получение токена для API СДЭК"""
+    try:
+        response = requests.post(
+            "https://api.cdek.ru/v2/oauth/token",
+            params={
+                "grant_type": "client_credentials",
+                "client_id": CDEK_CLIENT_ID,
+                "client_secret": CDEK_CLIENT_SECRET
+            },
+            timeout=30
+        )
+        if response.status_code == 200:
+            return response.json()["access_token"]
+        return None
+    except Exception as e:
+        print(f"⚠️ Ошибка получения токена СДЭК: {e}")
+        return None
+
 def get_city_code(city_name: str) -> int:
     city_lower = city_name.lower().strip()
     for name, code in CITY_CODES.items():
         if name in city_lower:
             return code
+    # Если нет в словаре, пробуем поискать через API
+    token = get_cdek_token()
+    if not token:
+        return None
     try:
-        client = CdekClient(CDEK_CLIENT_ID, CDEK_CLIENT_SECRET, timeout=60)
-        response = client.search_cities(city_lower)
-        if response and len(response) > 0:
-            return response[0].code
+        response = requests.get(
+            "https://api.cdek.ru/v2/city",
+            params={"q": city_lower},
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=30
+        )
+        if response.status_code == 200:
+            cities = response.json()
+            if cities and len(cities) > 0:
+                return cities[0]["code"]
     except Exception as e:
         print(f"⚠️ Ошибка поиска города: {e}")
     return None
@@ -68,19 +95,32 @@ def calculate_delivery(city_name: str, weight_grams: int) -> dict:
     city_code = get_city_code(city_name)
     if not city_code:
         return {"error": "Не удалось определить город"}
+    token = get_cdek_token()
+    if not token:
+        return {"error": "Не удалось получить токен СДЭК"}
     try:
-        client = CdekClient(CDEK_CLIENT_ID, CDEK_CLIENT_SECRET, timeout=60)
-        request = TariffCodeRequest.init(tariff_code=136)
-        request.set_city_codes(from_location=SENDER_CITY_CODE, to_location=city_code)
-        request.set_package_weight(weight=weight_grams)
-        tariff = client.tariff.calc(request)
-        return {
-            "price": tariff.delivery_sum,
-            "days_min": tariff.period_min,
-            "days_max": tariff.period_max
-        }
+        response = requests.post(
+            "https://api.cdek.ru/v2/calculator/tariff",
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            json={
+                "from_location": {"code": SENDER_CITY_CODE},
+                "to_location": {"code": city_code},
+                "packages": [{"weight": weight_grams}],
+                "tariff_codes": [136]  # 136 — склад-склад
+            },
+            timeout=60
+        )
+        if response.status_code == 200:
+            data = response.json()
+            if "tariff_codes" in data and len(data["tariff_codes"]) > 0:
+                tariff = data["tariff_codes"][0]
+                return {
+                    "price": tariff.get("total_sum", 0),
+                    "days_min": tariff.get("period_min", 1),
+                    "days_max": tariff.get("period_max", 3)
+                }
+        return {"error": f"Ошибка СДЭК: {response.status_code} {response.text[:200]}"}
     except Exception as e:
-        print(f"⚠️ Ошибка расчёта доставки: {e}")
         return {"error": str(e)}
 
 def extract_city(text: str) -> str:
@@ -143,7 +183,7 @@ def main():
     vk_session = VkApi(token=VK_TOKEN)
     longpoll = VkLongPoll(vk_session, wait=90)
     vk = vk_session.get_api()
-    print("✅ Бот запущен (без стопов — всегда отвечает)")
+    print("✅ Бот запущен (без cdek, с прямым API)")
 
     dialogs = {}
     order_data = {}
@@ -157,26 +197,19 @@ def main():
 
             print(f"📩 Получено от {uid}: {text}")
 
-            # Получаем имя клиента
             try:
                 user_info = vk.users.get(user_id=uid)
                 user_name = user_info[0]['first_name']
             except:
                 user_name = "Клиент"
 
-            # === ОБРАБОТКА ЗАПРОСА НА ДОСТАВКУ (с промежуточным ответом) ===
+            # === ЗАПРОС ДОСТАВКИ ===
             city_found = extract_city(text)
             delivery_keywords = ["доставк", "привезти", "сдэк", "курьер", "отправк", "транспортн", "сколько", "цена"]
             is_delivery_question = any(w in text.lower() for w in delivery_keywords)
 
             if city_found and is_delivery_question:
-                # 1. Отправляем промежуточный ответ
-                vk.messages.send(
-                    user_id=uid,
-                    message="⏳ Сейчас посчитаю стоимость доставки от Владимира до вашего города...",
-                    random_id=0
-                )
-                # 2. Определяем товар
+                vk.messages.send(user_id=uid, message="⏳ Сейчас посчитаю доставку...", random_id=0)
                 product = None
                 if uid in order_data and order_data[uid].get("product"):
                     product = order_data[uid]["product"]
@@ -192,7 +225,6 @@ def main():
                                     break
                     if not product:
                         product = PRODUCTS[-1]
-                # 3. Рассчитываем доставку
                 result = calculate_delivery(city_found, product["weight"])
                 if "error" in result:
                     answer = f"❌ Не удалось рассчитать доставку: {result['error']}"
@@ -219,7 +251,7 @@ def main():
                 dialogs[uid].append({"role": "assistant", "content": answer})
                 continue
 
-            # === ОБЫЧНЫЙ ПРОЦЕСС ЗАКАЗА (без запроса доставки) ===
+            # === ОБЫЧНЫЙ ЗАКАЗ ===
             if uid not in order_data or not order_data[uid].get("city"):
                 buy_keywords = ["купить", "заказать", "беру", "покупаю", "оформить", "заказ", "приобрести", "хочу", "нужны", "интересует"]
                 if any(w in text.lower() for w in buy_keywords) or any(p["name"].lower() in text.lower() for p in PRODUCTS):
@@ -245,12 +277,7 @@ def main():
                 if city_found:
                     order_data[uid]["city"] = city_found
                     product = order_data[uid]["product"]
-                    # Сразу отправим промежуточный ответ
-                    vk.messages.send(
-                        user_id=uid,
-                        message="⏳ Сейчас посчитаю доставку...",
-                        random_id=0
-                    )
+                    vk.messages.send(user_id=uid, message="⏳ Сейчас посчитаю доставку...", random_id=0)
                     result = calculate_delivery(city_found, product["weight"])
                     if "error" in result:
                         answer = f"❌ Не удалось рассчитать доставку: {result['error']}"
@@ -276,7 +303,6 @@ def main():
                 phone_found = extract_phone(text)
                 if phone_found:
                     order_data[uid]["phone"] = phone_found
-                    # Отправляем уведомление всем менеджерам
                     for manager_id in MANAGER_IDS:
                         try:
                             vk.messages.send(
@@ -301,7 +327,6 @@ def main():
                     del order_data[uid]
                     continue
                 else:
-                    # Если не похоже на телефон, переспрашиваем
                     if not any(w in text.lower() for w in ["да", "нет", "ок", "хорошо"]):
                         answer = "Для оформления заказа нужен ваш номер телефона. Напишите, пожалуйста."
                         vk.messages.send(user_id=uid, message=answer, random_id=0)
@@ -310,7 +335,7 @@ def main():
                         dialogs[uid].append({"role": "assistant", "content": answer})
                         continue
 
-            # === ОБЫЧНЫЙ ДИАЛОГ ЧЕРЕЗ ИИ ===
+            # === ОБЫЧНЫЙ ДИАЛОГ ===
             if uid not in dialogs:
                 dialogs[uid] = [{"role": "system", "content": SYSTEM_PROMPT}]
 
