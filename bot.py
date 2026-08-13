@@ -5,7 +5,7 @@ from vk_api import VkApi
 from vk_api.longpoll import VkLongPoll, VkEventType
 
 # ===== НАСТРОЙКИ =====
-VK_TOKEN = "vk1.a.gB_E6NmXBEv0nRT58o_22HRpW5hhLvc7TC22VbE1M8KBZPgW7beJfO-DmSqnCNGIdVvQu17WHPKa5teVbQq3z93d-pneW6XkAmMdpNowUViS0P0enWa16qKXfA4HRRCvG74_OriEOAF6mtQeddpjDzDoooIAGWBxu84c-1Aj7wE9sGoOrOdVSS5NvnDSjfc0-QunLDoQdSsSgDFQxkIWgg"
+VK_TOKEN = "vk1.a.vedeEaKBa4UKyV0RYddcBqMts_JJrvNynhr8OPClZfx2l6JQVzrFM2v9fXIm74J0RWykxVmwIMxbrwVuZxnoDYkUh4FE9EVxz4d3btZ51dyjV4nUzHJ9Gph5juclIZaWRfq03hBfqW6L3Our9W_1PwJsp5udn-_nOTM2XV79CO16MWqPwmfKEON4dp3oPnVdz9bBIhEzRIjmlAEFLfDeNQ"
 MANAGER_IDS = [29279564, 598512076]
 AITUNNEL_API_KEY = "sk-aitunnel-EJz97YJpiOwnaObmGNjf6mU8cT2OdP8L"
 
@@ -53,10 +53,11 @@ SYSTEM_PROMPT = (
     f"{PRODUCTS_LIST}\n\n"
     "АЛГОРИТМ РАБОТЫ:\n"
     "- Если клиент хочет купить — узнай его город.\n"
-    "- Когда клиент назвал город — рассчитай доставку и покажи итог.\n"
+    "- Когда клиент назвал город — рассчитай доставку и покажи итог (товар + доставка).\n"
     "- Затем спроси номер телефона.\n"
     "- Когда клиент дал телефон — сообщи, что заявка передана менеджеру.\n"
-    "- Отвечай кратко, дружелюбно, используй техники продаж."
+    "- Отвечай кратко, дружелюбно, используй техники продаж.\n"
+    "- Если клиент не назвал город, а спросил про доставку — сначала узнай город."
 )
 
 CITY_CODES = {
@@ -124,7 +125,7 @@ def calculate_delivery(city_name: str, weight_grams: int) -> dict:
                 "from_location": {"code": SENDER_CITY_CODE},
                 "to_location": {"code": city_code},
                 "packages": [{"weight": weight_grams}],
-                "tariff_codes": [136]
+                "tariff_codes": [136]  # 136 — склад-склад (самый дешёвый)
             },
             timeout=60
         )
@@ -203,20 +204,20 @@ def main():
             except:
                 user_name = "Клиент"
 
-            # Проверяем наличие города и телефона
+            # Проверяем, есть ли город и телефон в тексте
             city_found = extract_city(text)
             phone_found = extract_phone(text)
 
-            # Если есть город и есть намерение купить или спросить доставку
+            # Если есть город — сохраняем и считаем доставку (если есть намерение купить или вопрос о доставке)
             if city_found:
-                # Определяем товар
+                # Определяем товар (если не определён, берём первый)
                 product = None
                 for p in PRODUCTS:
-                    if p["name"].lower() in text.lower():
+                    if p["name"].lower() in text.lower() or any(w in text.lower() for w in ["ведр", "короб"]):
                         product = p
                         break
                 if not product:
-                    product = PRODUCTS[0]  # по умолчанию
+                    product = PRODUCTS[0]  # по умолчанию берём первый товар
 
                 # Рассчитываем доставку
                 result = calculate_delivery(city_found, product["weight"])
@@ -229,7 +230,7 @@ def main():
                         f"🚚 Доставка: {result['price']} ₽ ({result['days_min']}-{result['days_max']} дн.)\n"
                         f"💰 Итого: {total} ₽"
                     )
-                # Сохраняем данные заказа
+                # Сохраняем в order_data
                 if uid not in order_data:
                     order_data[uid] = {}
                 order_data[uid]["city"] = city_found
@@ -237,7 +238,7 @@ def main():
                 order_data[uid]["delivery"] = result
                 order_data[uid]["total"] = total
 
-                # Отправляем сообщение с доставкой
+                # Отправляем ответ
                 answer = (
                     f"📦 {product['name']} — {product['price']} ₽\n"
                     f"{delivery_text}\n\n"
@@ -284,7 +285,7 @@ def main():
                 del order_data[uid]
                 continue
 
-            # Обычный диалог
+            # Обычный диалог (ИИ)
             if uid not in dialogs:
                 dialogs[uid] = [{"role": "system", "content": SYSTEM_PROMPT}]
 
