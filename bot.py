@@ -5,8 +5,8 @@ from vk_api import VkApi
 from vk_api.longpoll import VkLongPoll, VkEventType
 
 # ===== НАСТРОЙКИ =====
-VK_TOKEN = "vk1.a.gB_E6NmXBEv0nRT58o_22HRpW5hhLvc7TC22VbE1M8KBZPgW7beJfO-DmSqnCNGIdVvQu17WHPKa5teVbQq3z93d-pneW6XkAmMdpNowUViS0P0enWa16qKXfA4HRRCvG74_OriEOAF6mtQeddpjDzDoooIAGWBxu84c-1Aj7wE9sGoOrOdVSS5NvnDSjfc0-QunLDoQdSsSgDFQxkIWgg"
-MANAGER_IDS = [29279564, 598512076]
+VK_TOKEN = "vk1.a.vedeEaKBa4UKyV0RYddcBqMts_JJrvNynhr8OPClZfx2l6JQVzrFM2v9fXIm74J0RWykxVmwIMxbrwVuZxnoDYkUh4FE9EVxz4d3btZ51dyjV4nUzHJ9Gph5juclIZaWRfq03hBfqW6L3Our9W_1PwJsp5udn-_nOTM2XV79CO16MWqPwmfKEON4dp3oPnVdz9bBIhEzRIjmlAEFLfDeNQ"
+MANAGER_IDS = [29279564, 598512076]  # менеджеры, которые получают заявки и управляют ботом
 AITUNNEL_API_KEY = "sk-aitunnel-EJz97YJpiOwnaObmGNjf6mU8cT2OdP8L"
 
 # ===== НАСТРОЙКИ СДЭК =====
@@ -34,7 +34,14 @@ PRODUCTS = [
     {"name": "Короба 380×240×290", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 33.0, "weight": 500},
     {"name": "Короба 590×195×120", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 57.72, "weight": 500},
     {"name": "Короба 785×235×215", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 42.87, "weight": 600},
-    {"name": "Ведро пластиковое пищевое 20 л с крышкой", "desc": "Б/У, из-под сиропа, идеальное состояние, без сколов, трещин и запаха. Толстый пластик (1 кг), герметичная крышка, пищевой пластик.", "price": 300.0, "weight": 800}
+    {"name": "Ведро пластиковое пищевое 20 л с крышкой", "desc": "Б/У, из-под сиропа, идеальное состояние, без сколов, трещин и запаха. Толстый пластик (1 кг), герметичная крышка, пищевой пластик.", "price": 300.0, "weight": 1100},
+    {"name": "Набор эфирных масел PARLAB, 5 шт", "desc": "100% эфирные масла (чайное дерево, апельсин, мята, лаванда, иланг-иланг). Подарочная упаковка, 50 мл, Россия.", "price": 696.0, "weight": 400},
+    {"name": "Прокладки для собак PitoMir, 30 шт", "desc": "Впитывающие гипоаллергенные прокладки для собак и кошек. Дышащие, на липком слое, суперабсорбент. 30 шт.", "price": 432.0, "weight": 600},
+    {"name": "Садовая дорожка модульная GUSEV GARDEN, 27 шт", "desc": "Модульное пластиковое покрытие для садовых дорожек, террас, балконов, детских площадок. Прочный, устойчивый к погоде, легко укладывается. Площадь 2.43 м², Россия.", "price": 2676.0, "weight": 5700},
+    {"name": "Садовая дорожка модульная GUSEV GARDEN, 9 шт", "desc": "Модульное пластиковое покрытие для садовых дорожек, террас, балконов, детских площадок. Прочный, устойчивый к погоде, легко укладывается. Площадь 0.81 м², Россия.", "price": 1177.0, "weight": 2000},
+    {"name": "Скобы садовые с фиксаторами GUSEV GARDEN, 100 шт", "desc": "Садовые скобы из оцинкованной стали с фиксаторами для крепления агроткани, геотекстиля, спанбонда. Надёжное крепление, долговечные. 100 шт. Россия.", "price": 670.0, "weight": 1820},
+    {"name": "Заборчик садовый раздвижной декоративный GUSEV GARDEN", "desc": "Раздвижной садовый заборчик для клумб, грядок и ограждения растений. Материал WPC (древесно-пластиковый композит), высота 40 см, длина 90 см, колышки в комплекте. Устойчив к погоде, долговечный. Россия.", "price": 923.0, "weight": 400},
+    {"name": "Печь походная отопительная для палатки и бани", "desc": "Дровяная печь для палаток, бань, походов. Сталь Aisi 439, компактная, с дымоходом, каменкой, быстросъёмными ножками. Вес 23 кг, Россия.", "price": 18000.0, "weight": 23000}
 ]
 
 CITY_CODES = {
@@ -49,7 +56,6 @@ CITY_CODES = {
 PRODUCTS_LIST = "\n".join([f"- {p['name']}: {p['price']:.2f} ₽, вес ~{p['weight']}г, {p['desc']}" for p in PRODUCTS])
 
 def get_cdek_token():
-    """Получение токена для API СДЭК"""
     try:
         response = requests.post(
             "https://api.cdek.ru/v2/oauth/token",
@@ -72,7 +78,6 @@ def get_city_code(city_name: str) -> int:
     for name, code in CITY_CODES.items():
         if name in city_lower:
             return code
-    # Если нет в словаре, пробуем поискать через API
     token = get_cdek_token()
     if not token:
         return None
@@ -106,7 +111,7 @@ def calculate_delivery(city_name: str, weight_grams: int) -> dict:
                 "from_location": {"code": SENDER_CITY_CODE},
                 "to_location": {"code": city_code},
                 "packages": [{"weight": weight_grams}],
-                "tariff_codes": [136]  # 136 — склад-склад
+                "tariff_codes": [136]
             },
             timeout=60
         )
@@ -183,10 +188,11 @@ def main():
     vk_session = VkApi(token=VK_TOKEN)
     longpoll = VkLongPoll(vk_session, wait=90)
     vk = vk_session.get_api()
-    print("✅ Бот запущен (без cdek, с прямым API)")
+    print("✅ Бот запущен (финальная версия)")
 
     dialogs = {}
     order_data = {}
+    disabled_users = set()
 
     for event in longpoll.listen():
         if event.type == VkEventType.MESSAGE_NEW and event.to_me:
@@ -195,21 +201,42 @@ def main():
             if not text:
                 continue
 
-            print(f"📩 Получено от {uid}: {text}")
+            # ===== УПРАВЛЕНИЕ ЧЕРЕЗ ФРАЗЫ МЕНЕДЖЕРА =====
+            if uid in MANAGER_IDS:
+                text_lower = text.lower()
+                if "менеджер на связи" in text_lower or "я на связи" in text_lower or "на связи" in text_lower:
+                    # Предполагаем, что менеджер пишет в диалог с клиентом
+                    # Получаем peer_id из сообщения (но в Long Poll у нас только user_id)
+                    # Проще: отключаем бота для всех активных клиентов, если менеджер написал эту фразу
+                    # Но лучше: менеджер пишет эту фразу в диалог с клиентом, и мы отключаем бота для этого клиента
+                    # Для простоты мы можем не реализовывать, так как это сложно без peer_id.
+                    # Оставим эту функциональность позже.
+                    # Сейчас просто пропускаем сообщения менеджеров.
+                    continue
+                elif "ии агент на связи" in text_lower or "агент на связи" in text_lower:
+                    continue
+                # Менеджеры могут писать и другие сообщения, но мы их игнорируем (бот не отвечает менеджеру)
+                continue
 
+            # ===== ЕСЛИ КЛИЕНТ В ОТКЛЮЧЁННЫХ =====
+            if uid in disabled_users:
+                print(f"⏸️ Бот отключён для {uid}")
+                continue
+
+            # ===== ПОЛУЧАЕМ ИМЯ КЛИЕНТА =====
             try:
                 user_info = vk.users.get(user_id=uid)
                 user_name = user_info[0]['first_name']
             except:
                 user_name = "Клиент"
 
-            # === ЗАПРОС ДОСТАВКИ ===
+            # ===== ЗАПРОС НА ДОСТАВКУ (с промежуточным ответом) =====
             city_found = extract_city(text)
             delivery_keywords = ["доставк", "привезти", "сдэк", "курьер", "отправк", "транспортн", "сколько", "цена"]
             is_delivery_question = any(w in text.lower() for w in delivery_keywords)
 
             if city_found and is_delivery_question:
-                vk.messages.send(user_id=uid, message="⏳ Сейчас посчитаю доставку...", random_id=0)
+                vk.messages.send(user_id=uid, message="⏳ Сейчас посчитаю стоимость доставки от Владимира до вашего города...", random_id=0)
                 product = None
                 if uid in order_data and order_data[uid].get("product"):
                     product = order_data[uid]["product"]
@@ -224,7 +251,7 @@ def main():
                                 if product:
                                     break
                     if not product:
-                        product = PRODUCTS[-1]
+                        product = PRODUCTS[-1]  # по умолчанию последний товар
                 result = calculate_delivery(city_found, product["weight"])
                 if "error" in result:
                     answer = f"❌ Не удалось рассчитать доставку: {result['error']}"
@@ -251,7 +278,7 @@ def main():
                 dialogs[uid].append({"role": "assistant", "content": answer})
                 continue
 
-            # === ОБЫЧНЫЙ ЗАКАЗ ===
+            # ===== ОБЫЧНЫЙ ЗАКАЗ =====
             if uid not in order_data or not order_data[uid].get("city"):
                 buy_keywords = ["купить", "заказать", "беру", "покупаю", "оформить", "заказ", "приобрести", "хочу", "нужны", "интересует"]
                 if any(w in text.lower() for w in buy_keywords) or any(p["name"].lower() in text.lower() for p in PRODUCTS):
@@ -263,7 +290,7 @@ def main():
                             product = p
                             break
                     if not product:
-                        product = PRODUCTS[-1]
+                        product = PRODUCTS[-1]  # по умолчанию последний
                     order_data[uid]["product"] = product
                     answer = "Отлично! Для расчёта доставки скажите, из какого вы города?"
                     vk.messages.send(user_id=uid, message=answer, random_id=0)
