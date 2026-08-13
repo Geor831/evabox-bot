@@ -9,7 +9,7 @@ VK_TOKEN = "vk1.a.vedeEaKBa4UKyV0RYddcBqMts_JJrvNynhr8OPClZfx2l6JQVzrFM2v9fXIm74
 MANAGER_IDS = [29279564, 598512076]
 AITUNNEL_API_KEY = "sk-aitunnel-EJz97YJpiOwnaObmGNjf6mU8cT2OdP8L"
 
-# ===== НАСТРОЙКИ СДЭК =====
+# ===== НАСТРОЙКИ СДЭК (уже вставлены) =====
 CDEK_CLIENT_ID = "1lewXxGlFX3De0d3L6rPbjhzYPfrYvJK"
 CDEK_CLIENT_SECRET = "pEpIoya912voraWeRAV2PdH18TrI1Fty"
 SENDER_CITY_CODE = 1177  # Владимир
@@ -124,17 +124,14 @@ def calculate_delivery(city_name: str, product: dict) -> dict:
     if not token:
         return {"error": "Не удалось получить токен СДЭК"}
 
-    # Подготавливаем параметры посылки
     package = {
-        "weight": product.get("weight", 500),  # вес в граммах
+        "weight": product.get("weight", 500),
     }
-    # Добавляем габариты, если они есть
     if "length" in product and "width" in product and "height" in product:
         package["length"] = product["length"]
         package["width"] = product["width"]
         package["height"] = product["height"]
 
-    # Попробуем несколько тарифов (136 — склад-склад, 137 — магистральный экспресс, 138 — экспресс)
     tariffs = [136, 137, 138]
     best_price = None
     best_days = None
@@ -165,7 +162,6 @@ def calculate_delivery(city_name: str, product: dict) -> dict:
                                 "max": tariff_info.get("period_max", 3)
                             }
             else:
-                # Если один тариф не работает, пробуем следующий
                 continue
         except Exception as e:
             print(f"⚠️ Ошибка при тарифе {tariff}: {e}")
@@ -178,7 +174,6 @@ def calculate_delivery(city_name: str, product: dict) -> dict:
             "days_max": best_days["max"]
         }
     else:
-        # Если ни один тариф не сработал, вернём ошибку
         return {"error": "Не удалось рассчитать доставку"}
 
 def extract_city(text: str) -> str:
@@ -246,18 +241,15 @@ def main():
             city_found = extract_city(text)
             phone_found = extract_phone(text)
 
-            # Если есть город — определяем товар и считаем доставку
             if city_found:
-                # Определяем товар (поиск по названию или ключевым словам)
                 product = None
                 for p in PRODUCTS:
                     if p["name"].lower() in text.lower() or any(w in text.lower() for w in ["ведр", "короб"]):
                         product = p
                         break
                 if not product:
-                    product = PRODUCTS[0]  # по умолчанию берём первый
+                    product = PRODUCTS[0]
 
-                # Рассчитываем доставку
                 result = calculate_delivery(city_found, product)
                 if "error" in result:
                     delivery_text = f"❌ {result['error']}"
@@ -268,7 +260,6 @@ def main():
                         f"🚚 Доставка: {result['price']} ₽ ({result['days_min']}-{result['days_max']} дн.)\n"
                         f"💰 Итого: {total} ₽"
                     )
-                # Сохраняем данные
                 if uid not in order_data:
                     order_data[uid] = {}
                 order_data[uid]["city"] = city_found
@@ -276,7 +267,6 @@ def main():
                 order_data[uid]["delivery"] = result
                 order_data[uid]["total"] = total
 
-                # Отправляем ответ с доставкой
                 answer = (
                     f"📦 {product['name']} — {product['price']} ₽\n"
                     f"{delivery_text}\n\n"
@@ -288,7 +278,6 @@ def main():
                 dialogs[uid].append({"role": "assistant", "content": answer})
                 continue
 
-            # Если есть телефон и уже есть город — отправляем заявку
             if phone_found and uid in order_data and order_data[uid].get("city"):
                 city = order_data[uid]["city"]
                 product = order_data[uid]["product"]
@@ -323,7 +312,6 @@ def main():
                 del order_data[uid]
                 continue
 
-            # Обычный диалог через ИИ
             if uid not in dialogs:
                 dialogs[uid] = [{"role": "system", "content": SYSTEM_PROMPT}]
 
