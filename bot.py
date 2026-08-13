@@ -6,7 +6,7 @@ from vk_api.longpoll import VkLongPoll, VkEventType
 
 # ===== НАСТРОЙКИ =====
 VK_TOKEN = "vk1.a.vedeEaKBa4UKyV0RYddcBqMts_JJrvNynhr8OPClZfx2l6JQVzrFM2v9fXIm74J0RWykxVmwIMxbrwVuZxnoDYkUh4FE9EVxz4d3btZ51dyjV4nUzHJ9Gph5juclIZaWRfq03hBfqW6L3Our9W_1PwJsp5udn-_nOTM2XV79CO16MWqPwmfKEON4dp3oPnVdz9bBIhEzRIjmlAEFLfDeNQ"
-MANAGER_IDS = [29279564, 598512076]  # менеджеры, которые получают заявки и управляют ботом
+MANAGER_IDS = [29279564, 598512076]
 AITUNNEL_API_KEY = "sk-aitunnel-EJz97YJpiOwnaObmGNjf6mU8cT2OdP8L"
 
 # ===== НАСТРОЙКИ СДЭК =====
@@ -201,22 +201,8 @@ def main():
             if not text:
                 continue
 
-            # ===== УПРАВЛЕНИЕ ЧЕРЕЗ ФРАЗЫ МЕНЕДЖЕРА =====
-            if uid in MANAGER_IDS:
-                text_lower = text.lower()
-                if "менеджер на связи" in text_lower or "я на связи" in text_lower or "на связи" in text_lower:
-                    # Предполагаем, что менеджер пишет в диалог с клиентом
-                    # Получаем peer_id из сообщения (но в Long Poll у нас только user_id)
-                    # Проще: отключаем бота для всех активных клиентов, если менеджер написал эту фразу
-                    # Но лучше: менеджер пишет эту фразу в диалог с клиентом, и мы отключаем бота для этого клиента
-                    # Для простоты мы можем не реализовывать, так как это сложно без peer_id.
-                    # Оставим эту функциональность позже.
-                    # Сейчас просто пропускаем сообщения менеджеров.
-                    continue
-                elif "ии агент на связи" in text_lower or "агент на связи" in text_lower:
-                    continue
-                # Менеджеры могут писать и другие сообщения, но мы их игнорируем (бот не отвечает менеджеру)
-                continue
+            # ===== УПРАВЛЕНИЕ ЧЕРЕЗ ФРАЗЫ МЕНЕДЖЕРА (отключено) =====
+            # Пока отключаем, чтобы не мешало тестированию
 
             # ===== ЕСЛИ КЛИЕНТ В ОТКЛЮЧЁННЫХ =====
             if uid in disabled_users:
@@ -251,7 +237,7 @@ def main():
                                 if product:
                                     break
                     if not product:
-                        product = PRODUCTS[-1]  # по умолчанию последний товар
+                        product = PRODUCTS[-1]
                 result = calculate_delivery(city_found, product["weight"])
                 if "error" in result:
                     answer = f"❌ Не удалось рассчитать доставку: {result['error']}"
@@ -290,7 +276,7 @@ def main():
                             product = p
                             break
                     if not product:
-                        product = PRODUCTS[-1]  # по умолчанию последний
+                        product = PRODUCTS[-1]
                     order_data[uid]["product"] = product
                     answer = "Отлично! Для расчёта доставки скажите, из какого вы города?"
                     vk.messages.send(user_id=uid, message=answer, random_id=0)
