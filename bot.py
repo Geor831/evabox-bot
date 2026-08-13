@@ -5,7 +5,7 @@ from vk_api import VkApi
 from vk_api.longpoll import VkLongPoll, VkEventType
 
 # ===== НАСТРОЙКИ =====
-VK_TOKEN = "vk1.a.vedeEaKBa4UKyV0RYddcBqMts_JJrvNynhr8OPClZfx2l6JQVzrFM2v9fXIm74J0RWykxVmwIMxbrwVuZxnoDYkUh4FE9EVxz4d3btZ51dyjV4nUzHJ9Gph5juclIZaWRfq03hBfqW6L3Our9W_1PwJsp5udn-_nOTM2XV79CO16MWqPwmfKEON4dp3oPnVdz9bBIhEzRIjmlAEFLfDeNQ"
+VK_TOKEN = "vk1.a.gB_E6NmXBEv0nRT58o_22HRpW5hhLvc7TC22VbE1M8KBZPgW7beJfO-DmSqnCNGIdVvQu17WHPKa5teVbQq3z93d-pneW6XkAmMdpNowUViS0P0enWa16qKXfA4HRRCvG74_OriEOAF6mtQeddpjDzDoooIAGWBxu84c-1Aj7wE9sGoOrOdVSS5NvnDSjfc0-QunLDoQdSsSgDFQxkIWgg"
 MANAGER_IDS = [29279564, 598512076]
 AITUNNEL_API_KEY = "sk-aitunnel-EJz97YJpiOwnaObmGNjf6mU8cT2OdP8L"
 # ===============================================
@@ -107,7 +107,7 @@ def main():
     vk_session = VkApi(token=VK_TOKEN)
     longpoll = VkLongPoll(vk_session, wait=90)
     vk = vk_session.get_api()
-    print("✅ Бот запущен (с полным ассортиментом, без СДЭК)")
+    print("✅ Бот запущен (старый токен, без СДЭК)")
 
     dialogs = {}
     order_data = {}
@@ -125,7 +125,6 @@ def main():
             except:
                 user_name = "Клиент"
 
-            # Проверяем город и телефон
             city_found = extract_city(text)
             phone_found = extract_phone(text)
 
@@ -139,11 +138,9 @@ def main():
                     order_data[uid] = {}
                 order_data[uid]["phone"] = phone_found
 
-            # Если есть и город, и телефон — отправляем заявку
             if uid in order_data and order_data[uid].get("city") and order_data[uid].get("phone"):
                 city = order_data[uid]["city"]
                 phone = order_data[uid]["phone"]
-                # Определяем товар (если упоминался)
                 product_name = "не указан"
                 for p in PRODUCTS:
                     if p["name"].lower() in text.lower():
@@ -171,7 +168,6 @@ def main():
                 del order_data[uid]
                 continue
 
-            # Обычный диалог
             if uid not in dialogs:
                 dialogs[uid] = [{"role": "system", "content": SYSTEM_PROMPT}]
 
