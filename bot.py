@@ -5,20 +5,16 @@ import json
 from vk_api import VkApi
 from vk_api.longpoll import VkLongPoll, VkEventType
 
-# ===== НАСТРОЙКИ =====
 VK_TOKEN = "vk1.a.vedeEaKBa4UKyV0RYddcBqMts_JJrvNynhr8OPClZfx2l6JQVzrFM2v9fXIm74J0RWykxVmwIMxbrwVuZxnoDYkUh4FE9EVxz4d3btZ51dyjV4nUzHJ9Gph5juclIZaWRfq03hBfqW6L3Our9W_1PwJsp5udn-_nOTM2XV79CO16MWqPwmfKEON4dp3oPnVdz9bBIhEzRIjmlAEFLfDeNQ"
 MANAGER_IDS = [29279564, 598512076]
 AITUNNEL_API_KEY = "sk-aitunnel-EJz97YJpiOwnaObmGNjf6mU8cT2OdP8L"
 
-# ===== НАСТРОЙКИ СДЭК =====
 CDEK_CLIENT_ID = "FDF0yHIab572TjWg6Kuo5uIzY5jcyKQ2"
 CDEK_CLIENT_SECRET = "B8UDRKFzfbMzMgZ9cwrOKsEwPodAloGN"
-SENDER_CITY_CODE = 1177  # Владимир
+SENDER_CITY_CODE = 1177
 
-# 👇 Тарифы, которые ты включил в настройках приложения
-TARIFF_CODES = [136, 137, 138]   # 136 — склад-склад, 137 — склад-дверь, 138 — экономичная склад-дверь
+TARIFF_CODES = [136, 137, 138]
 
-# 👇 Фиксированные цены (fallback, если API не отвечает)
 DELIVERY_PRICES = {
     "москва": 350,
     "самара": 430,
@@ -28,7 +24,6 @@ DELIVERY_PRICES = {
     "новосибирск": 500,
     "екатеринбург": 480,
 }
-# ===============================================
 
 PRODUCTS = [
     {"name": "Короба 600×400×400", "desc": "Крупная коробка для габаритных грузов. Трёхслойный гофрокартон T23, самосборная, упаковка 10 шт.", "price": 70.0, "weight": 500, "length": 60, "width": 40, "height": 40},
@@ -137,11 +132,6 @@ def get_delivery_price_fallback(city_name: str) -> int:
     return None
 
 def calculate_delivery(city_name: str, product_name: str) -> dict:
-    """
-    Возвращает самый дешёвый вариант доставки из доступных тарифов СДЭК.
-    Если API не отвечает — использует фиксированную цену из словаря.
-    """
-    # Находим товар
     product = None
     for p in PRODUCTS:
         if p["name"].lower() == product_name.lower() or product_name.lower() in p["name"].lower():
@@ -185,7 +175,6 @@ def calculate_delivery(city_name: str, product_name: str) -> dict:
                         tariff_info = data["tariff_codes"][0]
                         price = tariff_info.get("total_sum", 0)
                         if price > 0:
-                            # Название тарифа (можно сопоставить по коду)
                             name_map = {136: "склад-склад", 137: "склад-дверь", 138: "эконом"}
                             tariff_name = name_map.get(tariff_code, f"тариф {tariff_code}")
                             if best_price is None or price < best_price:
@@ -210,7 +199,6 @@ def calculate_delivery(city_name: str, product_name: str) -> dict:
             "source": "api"
         }
 
-    # Если API не сработал — используем fallback
     fallback_price = get_delivery_price_fallback(city_name)
     if fallback_price is not None:
         return {
@@ -327,7 +315,6 @@ def main():
                     result = calculate_delivery(city_name, product_name)
                     if "error" in result:
                         delivery_result = f"❌ {result['error']}"
-                        total = None
                     else:
                         total = result["product_price"] + result["price"]
                         tariff_text = f" ({result['tariff_name']})" if result.get("tariff_name") else ""
@@ -336,7 +323,6 @@ def main():
                             f"🚚 Доставка СДЭК{tariff_text}: {result['price']} ₽ (срок {result['days_min']}-{result['days_max']} дн.)\n"
                             f"💰 Итого: {total} ₽"
                         )
-                        # Сохраняем данные заказа
                         if uid not in order_data:
                             order_data[uid] = {}
                         order_data[uid]["city"] = city_name
