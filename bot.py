@@ -15,8 +15,19 @@ CDEK_CLIENT_ID = "FDF0yHIab572TjWg6Kuo5uIzY5jcyKQ2"
 CDEK_CLIENT_SECRET = "B8UDRKFzfbMzMgZ9cwrOKsEwPodAloGN"
 SENDER_CITY_CODE = 1177  # Владимир
 
-# 👇 ЗДЕСЬ УКАЖИ КОД СВОЕГО ТАРИФА (например, 430, 431, 432)
-TARIFF_CODES = [430]   # ← замени на правильный код
+# 👇 Код тарифа по твоему договору (например, 430)
+TARIFF_CODE = 430
+
+# 👇 Фиксированные цены (fallback, если API не ответит)
+DELIVERY_PRICES = {
+    "москва": 350,
+    "самара": 430,
+    "санкт-петербург": 450,
+    "питер": 450,
+    "владимир": 0,
+    "новосибирск": 500,
+    "екатеринбург": 480,
+}
 # ===============================================
 
 PRODUCTS = [
@@ -115,7 +126,20 @@ def get_city_code(city_name: str) -> int:
         print(f"⚠️ Ошибка поиска города: {e}")
     return None
 
+def get_delivery_price_fallback(city_name: str) -> int:
+    """Возвращает фиксированную цену из словаря, или None"""
+    city_lower = city_name.lower().strip()
+    for key, price in DELIVERY_PRICES.items():
+        if key in city_lower:
+            return price
+    return None
+
 def calculate_delivery(city_name: str, product_name: str) -> dict:
+    """
+    Сначала пытается рассчитать доставку через API СДЭК.
+    Если не получается — использует фиксированную цену из словаря.
+    """
+    # Находим товар
     product = None
     for p in PRODUCTS:
         if p["name"].lower() == product_name.lower() or product_name.lower() in p["name"].lower():
@@ -124,28 +148,18 @@ def calculate_delivery(city_name: str, product_name: str) -> dict:
     if not product:
         return {"error": f"Товар '{product_name}' не найден"}
 
+    # Пытаемся получить реальную цену через API
     city_code = get_city_code(city_name)
-    if not city_code:
-        return {"error": f"Не удалось определить город '{city_name}'"}
-
     token = get_cdek_token()
-    if not token:
-        return {"error": "Не удалось получить токен СДЭК"}
+    if city_code and token:
+        package = {
+            "weight": product.get("weight", 500),
+        }
+        if "length" in product and "width" in product and "height" in product:
+            package["length"] = product["length"]
+            package["width"] = product["width"]
+            package["height"] = product["height"]
 
-    package = {
-        "weight": product.get("weight", 500),
-    }
-    if "length" in product and "width" in product and "height" in product:
-        package["length"] = product["length"]
-        package["width"] = product["width"]
-        package["height"] = product["height"]
-
-    # Используем настроенные тарифы
-    best_price = None
-    best_days = None
-    last_error = None
-
-    for tariff in TARIFF_CODES:
         try:
             response = requests.post(
                 "https://api.cdek.ru/v2/calculator/tariff",
@@ -154,9 +168,9 @@ def calculate_delivery(city_name: str, product_name: str) -> dict:
                     "from_location": {"code": SENDER_CITY_CODE},
                     "to_location": {"code": city_code},
                     "packages": [package],
-                    "tariff_codes": [tariff]
+                    "tariff_codes": [TARIFF_CODE]
                 },
-                timeout=60
+                timeout=30
             )
             if response.status_code == 200:
                 data = response.json()
@@ -164,28 +178,30 @@ def calculate_delivery(city_name: str, product_name: str) -> dict:
                     tariff_info = data["tariff_codes"][0]
                     price = tariff_info.get("total_sum", 0)
                     if price > 0:
-                        if best_price is None or price < best_price:
-                            best_price = price
-                            best_days = {
-                                "min": tariff_info.get("period_min", 1),
-                                "max": tariff_info.get("period_max", 3)
-                            }
-            else:
-                last_error = f"СДЭК вернул {response.status_code}"
+                        return {
+                            "price": price,
+                            "days_min": tariff_info.get("period_min", 2),
+                            "days_max": tariff_info.get("period_max", 4),
+                            "product_name": product["name"],
+                            "product_price": product["price"],
+                            "source": "api"
+                        }
         except Exception as e:
-            last_error = str(e)
-            continue
+            print(f"⚠️ Ошибка API СДЭК: {e}")
 
-    if best_price is not None:
+    # Если API не сработал — используем фиксированную цену
+    fallback_price = get_delivery_price_fallback(city_name)
+    if fallback_price is not None:
         return {
-            "price": best_price,
-            "days_min": best_days["min"],
-            "days_max": best_days["max"],
+            "price": fallback_price,
+            "days_min": 2,
+            "days_max": 4,
             "product_name": product["name"],
-            "product_price": product["price"]
+            "product_price": product["price"],
+            "source": "fallback"
         }
     else:
-        return {"error": last_error or "Не удалось рассчитать доставку"}
+        return {"error": "Доставка будет рассчитана менеджером"}
 
 def ask_aitunnel_with_tools(user_msg, history=None, tools=None):
     if history is None:
@@ -222,7 +238,7 @@ def main():
     vk_session = VkApi(token=VK_TOKEN)
     longpoll = VkLongPoll(vk_session, wait=90)
     vk = vk_session.get_api()
-    print("✅ Бот запущен (function calling)")
+    print("✅ Бот запущен (гибридный режим)")
 
     tools = [
         {
@@ -292,9 +308,9 @@ def main():
                         total = None
                     else:
                         total = result["product_price"] + result["price"]
-                        tariff_name = "тариф по договору"
+                        source_text = " (реальный расчёт)" if result.get("source") == "api" else " (по тарифу)"
                         delivery_result = (
-                            f"🚚 Доставка ({tariff_name}): {result['price']} ₽\n"
+                            f"🚚 Доставка{source_text}: {result['price']} ₽\n"
                             f"📦 Срок: {result['days_min']}-{result['days_max']} дня(ей)\n"
                             f"💰 Итого: {total} ₽"
                         )
