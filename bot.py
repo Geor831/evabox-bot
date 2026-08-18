@@ -9,9 +9,9 @@ VK_TOKEN = "vk1.a.vedeEaKBa4UKyV0RYddcBqMts_JJrvNynhr8OPClZfx2l6JQVzrFM2v9fXIm74
 MANAGER_IDS = [29279564, 598512076]
 AITUNNEL_API_KEY = "sk-aitunnel-EJz97YJpiOwnaObmGNjf6mU8cT2OdP8L"
 
-# ===== НАСТРОЙКИ СДЭК (уже вставлены) =====
-CDEK_CLIENT_ID = "1lewXxGlFX3De0d3L6rPbjhzYPfrYvJK"
-CDEK_CLIENT_SECRET = "pEpIoya912voraWeRAV2PdH18TrI1Fty"
+# ===== НАСТРОЙКИ СДЭК (ОБНОВЛЕНЫ 18.08.2026) =====
+CDEK_CLIENT_ID = "FDF0yHIab572TjWg6Kuo5uIzY5jcyKQ2"
+CDEK_CLIENT_SECRET = "B8UDRKFzfbMzMgZ9cwrOKsEwPodAloGN"
 SENDER_CITY_CODE = 1177  # Владимир
 # ===============================================
 
