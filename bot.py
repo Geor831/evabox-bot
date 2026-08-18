@@ -5,25 +5,20 @@ import json
 from vk_api import VkApi
 from vk_api.longpoll import VkLongPoll, VkEventType
 
-# ===== НАСТРОЙКИ =====
 VK_TOKEN = "vk1.a.vedeEaKBa4UKyV0RYddcBqMts_JJrvNynhr8OPClZfx2l6JQVzrFM2v9fXIm74J0RWykxVmwIMxbrwVuZxnoDYkUh4FE9EVxz4d3btZ51dyjV4nUzHJ9Gph5juclIZaWRfq03hBfqW6L3Our9W_1PwJsp5udn-_nOTM2XV79CO16MWqPwmfKEON4dp3oPnVdz9bBIhEzRIjmlAEFLfDeNQ"
 MANAGER_IDS = [29279564, 598512076]
 AITUNNEL_API_KEY = "sk-aitunnel-EJz97YJpiOwnaObmGNjf6mU8cT2OdP8L"
 
-# ===== НАСТРОЙКИ СДЭК =====
 CDEK_CLIENT_ID = "FDF0yHIab572TjWg6Kuo5uIzY5jcyKQ2"
 CDEK_CLIENT_SECRET = "B8UDRKFzfbMzMgZ9cwrOKsEwPodAloGN"
-SENDER_CITY_CODE = 1177  # Владимир
+SENDER_CITY_CODE = 1177
 
-# 👇 ТАРИФЫ, КОТОРЫЕ ТЫ ВКЛЮЧИЛ В НАСТРОЙКАХ ПРИЛОЖЕНИЯ
-# Формат: код, название, описание
 TARIFFS = [
     {"code": 136, "name": "Посылка склад-склад", "desc": "Доставка до пункта выдачи"},
     {"code": 137, "name": "Посылка склад-дверь", "desc": "Доставка курьером до двери"},
     {"code": 138, "name": "Экономичная посылка склад-дверь", "desc": "Эконом-доставка курьером"},
 ]
 
-# 👇 Фиксированные цены (fallback, если API не отвечает)
 DELIVERY_PRICES = {
     "москва": 350,
     "самара": 430,
@@ -33,7 +28,6 @@ DELIVERY_PRICES = {
     "новосибирск": 500,
     "екатеринбург": 480,
 }
-# ===============================================
 
 PRODUCTS = [
     {"name": "Короба 600×400×400", "desc": "Крупная коробка для габаритных грузов. Трёхслойный гофрокартон T23, самосборная, упаковка 10 шт.", "price": 70.0, "weight": 500, "length": 60, "width": 40, "height": 40},
@@ -135,11 +129,6 @@ def get_city_code(city_name: str) -> int:
     return None
 
 def calculate_delivery(city_name: str, product_name: str) -> dict:
-    """
-    Рассчитывает доставку для всех тарифов из TARIFFS и возвращает список вариантов.
-    Если API не отвечает, использует фиксированные цены из DELIVERY_PRICES.
-    """
-    # Находим товар
     product = None
     for p in PRODUCTS:
         if p["name"].lower() == product_name.lower() or product_name.lower() in p["name"].lower():
@@ -154,9 +143,7 @@ def calculate_delivery(city_name: str, product_name: str) -> dict:
     tariffs_result = []
 
     if city_code and token:
-        package = {
-            "weight": product.get("weight", 500),
-        }
+        package = {"weight": product.get("weight", 500)}
         if "length" in product and "width" in product and "height" in product:
             package["length"] = product["length"]
             package["width"] = product["width"]
@@ -193,11 +180,9 @@ def calculate_delivery(city_name: str, product_name: str) -> dict:
                 print(f"⚠️ Ошибка при тарифе {tariff['code']}: {e}")
                 continue
 
-    # Если ни один тариф не получился — используем fallback (одна цена)
     if not tariffs_result:
         fallback_price = DELIVERY_PRICES.get(city_name.lower(), None)
         if fallback_price is not None:
-            # Добавляем один вариант с фиксированной ценой
             tariffs_result.append({
                 "name": "Доставка по договору",
                 "desc": "Фиксированная цена",
@@ -317,13 +302,10 @@ def main():
                     result = calculate_delivery(city_name, product_name)
                     if "error" in result:
                         delivery_result = f"❌ {result['error']}"
-                        total = None
                     else:
-                        # Формируем текст с вариантами доставки
                         tariffs_text = ""
                         for i, t in enumerate(result["tariffs"], 1):
                             tariffs_text += f"{i}. {t['name']} — {t['price']} ₽ (срок {t['days_min']}-{t['days_max']} дн.)\n"
-                        total = result["product_price"] + result["tariffs"][0]["price"] if result["tariffs"] else None
                         delivery_result = (
                             f"📦 {result['product_name']} — {result['product_price']} ₽\n"
                             f"Выберите вариант доставки СДЭК:\n"
@@ -369,11 +351,9 @@ def main():
                         order_data[uid] = {}
                     order_data[uid]["awaiting_phone"] = True
 
-            # Обработка выбора тарифа
             if uid in order_data and order_data[uid].get("awaiting_tariff_choice"):
                 tariffs = order_data[uid].get("tariffs")
                 if tariffs:
-                    # Ищем выбранный тариф по номеру или названию
                     choice = text.strip()
                     selected = None
                     if choice.isdigit():
@@ -390,7 +370,6 @@ def main():
                         order_data[uid]["delivery_price"] = selected["price"]
                         order_data[uid]["total"] = order_data[uid]["product_price"] + selected["price"]
                         order_data[uid]["awaiting_tariff_choice"] = False
-                        # Просим телефон
                         answer = f"Вы выбрали: {selected['name']} — {selected['price']} ₽. Итого: {order_data[uid]['total']} ₽.\nУкажите номер телефона для оформления заказа."
                         vk.messages.send(user_id=uid, message=answer, random_id=0)
                         dialogs[uid].append({"role": "assistant", "content": answer})
