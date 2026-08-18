@@ -9,13 +9,12 @@ VK_TOKEN = "vk1.a.vedeEaKBa4UKyV0RYddcBqMts_JJrvNynhr8OPClZfx2l6JQVzrFM2v9fXIm74
 MANAGER_IDS = [29279564, 598512076]
 AITUNNEL_API_KEY = "sk-aitunnel-EJz97YJpiOwnaObmGNjf6mU8cT2OdP8L"
 
-# ===== НАСТРОЙКИ СДЭК (ОБНОВЛЕНЫ 18.08.2026) =====
+# ===== НАСТРОЙКИ СДЭК =====
 CDEK_CLIENT_ID = "FDF0yHIab572TjWg6Kuo5uIzY5jcyKQ2"
 CDEK_CLIENT_SECRET = "B8UDRKFzfbMzMgZ9cwrOKsEwPodAloGN"
 SENDER_CITY_CODE = 1177  # Владимир
 # ===============================================
 
-# ===== ТОВАРЫ С ГАБАРИТАМИ =====
 PRODUCTS = [
     {"name": "Короба 600×400×400", "desc": "Крупная коробка для габаритных грузов. Трёхслойный гофрокартон T23, самосборная, упаковка 10 шт. Надёжно защищает товар при переезде и хранении.", "price": 70.0, "weight": 500, "length": 60, "width": 40, "height": 40},
     {"name": "Короба 600×400×200", "desc": "Удобная коробка 600×400×200 мм для плоских грузов. Трёхслойный картон T23, самосборная, упаковка 10 шт. Прочная и лёгкая.", "price": 68.0, "weight": 400, "length": 60, "width": 40, "height": 20},
@@ -70,6 +69,25 @@ CITY_CODES = {
     "екатеринбург": 270,
 }
 
+def find_product_by_text(text):
+    """Определяет товар по тексту сообщения"""
+    text_lower = text.lower()
+    # Сначала ищем по ключевым словам
+    if "ведр" in text_lower:
+        for p in PRODUCTS:
+            if "ведр" in p["name"].lower():
+                return p
+    if "короб" in text_lower:
+        for p in PRODUCTS:
+            if "короб" in p["name"].lower():
+                return p
+    # Если не нашли, ищем по полному названию
+    for p in PRODUCTS:
+        if p["name"].lower() in text_lower:
+            return p
+    # Если ничего не найдено, возвращаем первый товар
+    return PRODUCTS[0]
+
 def get_cdek_token():
     try:
         response = requests.post(
@@ -83,6 +101,7 @@ def get_cdek_token():
         )
         if response.status_code == 200:
             return response.json()["access_token"]
+        print(f"⚠️ Ошибка получения токена СДЭК: {response.status_code} {response.text[:200]}")
         return None
     except Exception as e:
         print(f"⚠️ Ошибка получения токена СДЭК: {e}")
@@ -107,15 +126,12 @@ def get_city_code(city_name: str) -> int:
             cities = response.json()
             if cities and len(cities) > 0:
                 return cities[0]["code"]
+        print(f"⚠️ Ошибка поиска города: {response.status_code} {response.text[:200]}")
     except Exception as e:
         print(f"⚠️ Ошибка поиска города: {e}")
     return None
 
 def calculate_delivery(city_name: str, product: dict) -> dict:
-    """
-    Рассчитывает доставку с использованием габаритов и нескольких тарифов.
-    Возвращает словарь с минимальной ценой и сроками.
-    """
     city_code = get_city_code(city_name)
     if not city_code:
         return {"error": "Не удалось определить город"}
@@ -135,6 +151,7 @@ def calculate_delivery(city_name: str, product: dict) -> dict:
     tariffs = [136, 137, 138]
     best_price = None
     best_days = None
+    last_error = None
 
     for tariff in tariffs:
         try:
@@ -162,8 +179,10 @@ def calculate_delivery(city_name: str, product: dict) -> dict:
                                 "max": tariff_info.get("period_max", 3)
                             }
             else:
-                continue
+                last_error = f"СДЭК вернул {response.status_code}: {response.text[:200]}"
+                print(f"⚠️ Ошибка при тарифе {tariff}: {last_error}")
         except Exception as e:
+            last_error = str(e)
             print(f"⚠️ Ошибка при тарифе {tariff}: {e}")
             continue
 
@@ -174,7 +193,7 @@ def calculate_delivery(city_name: str, product: dict) -> dict:
             "days_max": best_days["max"]
         }
     else:
-        return {"error": "Не удалось рассчитать доставку"}
+        return {"error": last_error or "Не удалось рассчитать доставку"}
 
 def extract_city(text: str) -> str:
     text_lower = text.lower()
@@ -220,7 +239,7 @@ def main():
     vk_session = VkApi(token=VK_TOKEN)
     longpoll = VkLongPoll(vk_session, wait=90)
     vk = vk_session.get_api()
-    print("✅ Бот запущен (с СДЭК и габаритами)")
+    print("✅ Бот запущен (с СДЭК и отладкой)")
 
     dialogs = {}
     order_data = {}
@@ -242,18 +261,13 @@ def main():
             phone_found = extract_phone(text)
 
             if city_found:
-                product = None
-                for p in PRODUCTS:
-                    if p["name"].lower() in text.lower() or any(w in text.lower() for w in ["ведр", "короб"]):
-                        product = p
-                        break
-                if not product:
-                    product = PRODUCTS[0]
-
+                product = find_product_by_text(text)
                 result = calculate_delivery(city_found, product)
                 if "error" in result:
                     delivery_text = f"❌ {result['error']}"
                     total = None
+                    # Сохраняем ошибку в лог
+                    print(f"⚠️ Ошибка доставки для {city_found}: {result['error']}")
                 else:
                     total = product["price"] + result["price"]
                     delivery_text = (
@@ -264,9 +278,10 @@ def main():
                     order_data[uid] = {}
                 order_data[uid]["city"] = city_found
                 order_data[uid]["product"] = product
-                order_data[uid]["delivery"] = result
+                order_data[uid]["delivery"] = result if "error" not in result else None
                 order_data[uid]["total"] = total
 
+                # Отправляем ответ с доставкой (или с ошибкой)
                 answer = (
                     f"📦 {product['name']} — {product['price']} ₽\n"
                     f"{delivery_text}\n\n"
@@ -284,7 +299,7 @@ def main():
                 total = order_data[uid].get("total")
                 delivery = order_data[uid].get("delivery")
                 delivery_info = ""
-                if delivery and "error" not in delivery and total is not None:
+                if delivery:
                     delivery_info = f"Доставка: {delivery['price']} ₽, итого: {total} ₽"
                 else:
                     delivery_info = "Доставка будет рассчитана менеджером"
