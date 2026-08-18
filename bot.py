@@ -5,13 +5,21 @@ import json
 from vk_api import VkApi
 from vk_api.longpoll import VkLongPoll, VkEventType
 
+# ===== НАСТРОЙКИ =====
 VK_TOKEN = "vk1.a.vedeEaKBa4UKyV0RYddcBqMts_JJrvNynhr8OPClZfx2l6JQVzrFM2v9fXIm74J0RWykxVmwIMxbrwVuZxnoDYkUh4FE9EVxz4d3btZ51dyjV4nUzHJ9Gph5juclIZaWRfq03hBfqW6L3Our9W_1PwJsp5udn-_nOTM2XV79CO16MWqPwmfKEON4dp3oPnVdz9bBIhEzRIjmlAEFLfDeNQ"
-MANAGER_IDS = [29279564, 598512076]
 AITUNNEL_API_KEY = "sk-aitunnel-EJz97YJpiOwnaObmGNjf6mU8cT2OdP8L"
 
+# ===== МЕНЕДЖЕРЫ И ИХ ТОВАРЫ =====
+MANAGER_PRODUCTS = {
+    16432320: ["скобы садовые", "фиксаторы"],
+    2727304: ["модульное покрытие", "дорожка", "прокладки для собак", "эфирные масла"],
+}
+ALL_MANAGER_IDS = list(MANAGER_PRODUCTS.keys())  # [16432320, 2727304]
+
+# ===== НАСТРОЙКИ СДЭК =====
 CDEK_CLIENT_ID = "FDF0yHIab572TjWg6Kuo5uIzY5jcyKQ2"
 CDEK_CLIENT_SECRET = "B8UDRKFzfbMzMgZ9cwrOKsEwPodAloGN"
-SENDER_CITY_CODE = 1177
+SENDER_CITY_CODE = 1177  # Владимир
 
 TARIFF_CODES = [136, 137, 138]
 
@@ -24,6 +32,7 @@ DELIVERY_PRICES = {
     "новосибирск": 500,
     "екатеринбург": 480,
 }
+# ===============================================
 
 PRODUCTS = [
     {"name": "Короба 600×400×400", "desc": "Крупная коробка для габаритных грузов. Трёхслойный гофрокартон T23, самосборная, упаковка 10 шт.", "price": 70.0, "weight": 500, "length": 60, "width": 40, "height": 40},
@@ -80,6 +89,16 @@ CITY_CODES = {
     "новосибирск": 137,
     "екатеринбург": 270,
 }
+
+def get_responsible_managers(product_name: str):
+    """Возвращает список ID менеджеров, ответственных за данный товар"""
+    managers = []
+    for manager_id, products in MANAGER_PRODUCTS.items():
+        for p in products:
+            if p.lower() in product_name.lower():
+                managers.append(manager_id)
+                break
+    return managers
 
 def get_cdek_token():
     try:
@@ -248,7 +267,7 @@ def main():
     vk_session = VkApi(token=VK_TOKEN)
     longpoll = VkLongPoll(vk_session, wait=90)
     vk = vk_session.get_api()
-    print("✅ Бот запущен (автоматический выбор минимальной доставки)")
+    print("✅ Бот запущен (с распределением заявок по менеджерам)")
 
     tools = [
         {
@@ -373,7 +392,14 @@ def main():
                     tariff_name = order_data[uid].get("tariff_name", "не выбран")
                     delivery_info = f"Тариф: {tariff_name}, стоимость: {delivery_price} ₽, итого: {total} ₽"
 
-                    for manager_id in MANAGER_IDS:
+                    # Определяем, кто ответственен за этот товар
+                    responsible = get_responsible_managers(product)
+                    if responsible:
+                        target_managers = responsible
+                    else:
+                        target_managers = ALL_MANAGER_IDS  # если нет, отправляем всем
+
+                    for manager_id in target_managers:
                         try:
                             vk.messages.send(
                                 user_id=manager_id,
