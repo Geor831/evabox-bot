@@ -1,6 +1,7 @@
 import time
 import requests
 import re
+import json
 from vk_api import VkApi
 from vk_api.longpoll import VkLongPoll, VkEventType
 
@@ -16,48 +17,47 @@ SENDER_CITY_CODE = 1177  # Владимир
 # ===============================================
 
 PRODUCTS = [
-    {"name": "Короба 600×400×400", "desc": "Крупная коробка для габаритных грузов. Трёхслойный гофрокартон T23, самосборная, упаковка 10 шт. Надёжно защищает товар при переезде и хранении.", "price": 70.0, "weight": 500, "length": 60, "width": 40, "height": 40},
-    {"name": "Короба 600×400×200", "desc": "Удобная коробка 600×400×200 мм для плоских грузов. Трёхслойный картон T23, самосборная, упаковка 10 шт. Прочная и лёгкая.", "price": 68.0, "weight": 400, "length": 60, "width": 40, "height": 20},
-    {"name": "Короба 200×300×300", "desc": "Коробка 200×300×300 мм для небольших товаров. Трёхслойный гофрокартон T23, самосборная, 10 шт. в упаковке. Идеально для интернет-магазинов.", "price": 60.0, "weight": 400, "length": 20, "width": 30, "height": 30},
-    {"name": "Короба 95×95×103", "desc": "Компактная коробка 95×95×103 мм для мелких предметов. Трёхслойный картон T23, самосборная, упаковка 10 шт. Надёжная упаковка для небольших заказов.", "price": 22.0, "weight": 200, "length": 9.5, "width": 9.5, "height": 10.3},
-    {"name": "Короба 50×50×225", "desc": "Узкая коробка 50×50×225 мм для длинных товаров. Трёхслойный гофрокартон T23, самосборная, 10 шт. Отлично подходит для труб, светильников, профилей.", "price": 16.0, "weight": 200, "length": 5, "width": 5, "height": 22.5},
-    {"name": "Короба 100×100×290", "desc": "Коробка 100×100×290 мм для средних по длине предметов. Трёхслойный картон T23, самосборная, упаковка 10 шт. Прочная и удобная.", "price": 12.09, "weight": 200, "length": 10, "width": 10, "height": 29},
-    {"name": "Короба 1040×165×45", "desc": "Длинная плоская коробка 1040×165×45 мм для крупных плоских грузов. Трёхслойный гофрокартон T23, самосборная, 10 шт. Идеально для картин, зеркал, панелей.", "price": 29.04, "weight": 600, "length": 104, "width": 16.5, "height": 4.5},
-    {"name": "Короба 110×110×335", "desc": "Коробка 110×110×335 мм для длинных тонких предметов. Трёхслойный картон T23, самосборная, упаковка 10 шт. Надёжно защищает содержимое.", "price": 20.3, "weight": 300, "length": 11, "width": 11, "height": 33.5},
-    {"name": "Короба 165×105×55", "desc": "Коробка 165×105×55 мм для компактных товаров. Трёхслойный гофрокартон T23, самосборная, 10 шт. Удобна для хранения и пересылки.", "price": 11.08, "weight": 200, "length": 16.5, "width": 10.5, "height": 5.5},
-    {"name": "Короба 170×170×80", "desc": "Квадратная коробка 170×170×80 мм для небольших квадратных предметов. Трёхслойный картон T23, самосборная, упаковка 10 шт. Прочная и аккуратная.", "price": 9.96, "weight": 200, "length": 17, "width": 17, "height": 8},
-    {"name": "Короба 220×130×130*", "desc": "Коробка 220×130×130 мм для небольших товаров среднего размера. Трёхслойный гофрокартон T23, самосборная, 10 шт. Универсальная упаковка.", "price": 9.99, "weight": 200, "length": 22, "width": 13, "height": 13},
-    {"name": "Короба 220×130×180", "desc": "Коробка 220×130×180 мм для компактных грузов. Трёхслойный картон T23, самосборная, упаковка 10 шт. Надёжно защищает товары при транспортировке.", "price": 11.47, "weight": 200, "length": 22, "width": 13, "height": 18},
-    {"name": "Короба 240×135×50", "desc": "Плоская коробка 240×135×50 мм для небольших плоских предметов. Трёхслойный гофрокартон T23, самосборная, 10 шт. Удобна для писем, документов, фото.", "price": 16.98, "weight": 300, "length": 24, "width": 13.5, "height": 5},
-    {"name": "Короба 280×150×350", "desc": "Коробка 280×150×350 мм для средних габаритных товаров. Трёхслойный картон T23, самосборная, упаковка 10 шт. Надёжная упаковка для интернет-заказов.", "price": 23.41, "weight": 400, "length": 28, "width": 15, "height": 35},
-    {"name": "Короба 300×200×300", "desc": "Коробка 300×200×300 мм для универсальных грузов. Трёхслойный гофрокартон T23, самосборная, 10 шт. Отлично подходит для хранения и пересылки.", "price": 23.55, "weight": 400, "length": 30, "width": 20, "height": 30},
-    {"name": "Короба 380×240×290", "desc": "Коробка 380×240×290 мм для крупных товаров. Трёхслойный картон T23, самосборная, упаковка 10 шт. Прочная конструкция для тяжелых грузов.", "price": 33.0, "weight": 500, "length": 38, "width": 24, "height": 29},
-    {"name": "Короба 590×195×120", "desc": "Длинная коробка 590×195×120 мм для крупных длинных предметов. Трёхслойный гофрокартон T23, самосборная, 10 шт. Идеально для доставки габаритных товаров.", "price": 57.72, "weight": 500, "length": 59, "width": 19.5, "height": 12},
-    {"name": "Короба 785×235×215", "desc": "Крупная коробка 785×235×215 мм для больших грузов. Трёхслойный картон T23, самосборная, упаковка 10 шт. Надёжная защита для крупногабаритных товаров.", "price": 42.87, "weight": 600, "length": 78.5, "width": 23.5, "height": 21.5},
-    {"name": "Ведро пластиковое пищевое 20 л с крышкой", "desc": "🪣 Универсальное пищевое ведро 20 л — идеально для хранения продуктов, заготовок, воды. Толстый пластик (1 кг), герметичная крышка, удобная ручка. Б/у из-под сиропа, состояние идеальное: без сколов, трещин и запаха. Сертифицированный пищевой пластик. Не трескается на морозе.", "price": 300.0, "weight": 1100, "length": 35, "width": 35, "height": 40},
-    {"name": "Набор эфирных масел PARLAB, 5 шт", "desc": "🌿 Натуральный набор 100% эфирных масел (чайное дерево, апельсин, мята, лаванда, иланг-иланг). В подарочной упаковке, объём 50 мл. Помогает снять стресс, улучшить сон, поднять настроение. Идеальный подарок для женщин и мужчин.", "price": 696.0, "weight": 400, "length": 20, "width": 15, "height": 5},
-    {"name": "Прокладки для собак PitoMir, 30 шт", "desc": "🐾 Гипоаллергенные впитывающие прокладки для собак и кошек 30 шт. Дышащий материал, суперабсорбент, липкий слой для фиксации. Индивидуальная упаковка каждой прокладки. Идеальны для щенков, пожилых животных, в дорогу или для дома. Безопасно и гигиенично.", "price": 432.0, "weight": 600, "length": 30, "width": 20, "height": 10},
-    {"name": "Садовая дорожка модульная GUSEV GARDEN, 27 шт", "desc": "🌱 Садовая модульная дорожка 27 модулей (2.43 м²). Прочный пластик, устойчивый к погоде и нагрузкам. Легко собирается без инструментов. Подходит для садовых дорожек, террас, балконов, детских площадок. Не гниёт, не выцветает, скрывает неровности земли. Антивандальное покрытие.", "price": 2676.0, "weight": 5700, "length": 32, "width": 31, "height": 26},
-    {"name": "Садовая дорожка модульная GUSEV GARDEN, 9 шт", "desc": "🌱 Садовая модульная дорожка 9 модулей (0.81 м²). Компактный вариант для небольших участков, между грядками, у входа в теплицу. Те же преимущества: прочный пластик, устойчивость к погоде, лёгкий монтаж.", "price": 1177.0, "weight": 2000, "length": 32, "width": 32, "height": 9},
-    {"name": "Скобы садовые с фиксаторами GUSEV GARDEN, 100 шт", "desc": "🧷 Надёжные садовые скобы из оцинкованной стали с пластиковыми фиксаторами, 100 шт. Заострённые концы легко входят в грунт, надёжно фиксируют агроткань, геотекстиль, спанбонд. Не ржавеют, долговечные. Идеально для грядок, теплиц, клумб.", "price": 670.0, "weight": 1820, "length": 23, "width": 18, "height": 10},
-    {"name": "Заборчик садовый раздвижной декоративный GUSEV GARDEN", "desc": "🌳 Декоративный раздвижной заборчик из WPC (древесно-пластиковый композит). Высота 40 см, длина 90 см (раздвижной), колышки в комплекте. Лёгкий, прочный, не боится влаги и солнца. Ограждает клумбы, грядки, деревья. Красиво и функционально.", "price": 923.0, "weight": 400, "length": 45, "width": 23, "height": 3},
-    {"name": "Печь походная отопительная для палатки и бани", "desc": "🔥 Дровяная печь из стали Aisi 439, компактная, с дымоходом, каменкой, быстросъёмными ножками. Идеальна для палаток, бань, зимней рыбалки, походов. Кирпичный стиль — долго сохраняет тепло. Можно готовить пищу. Сделано в России. Надёжная и мощная.", "price": 18000.0, "weight": 23000, "length": 67, "width": 30, "height": 45}
+    {"name": "Короба 600×400×400", "desc": "Крупная коробка для габаритных грузов. Трёхслойный гофрокартон T23, самосборная, упаковка 10 шт.", "price": 70.0, "weight": 500, "length": 60, "width": 40, "height": 40},
+    {"name": "Короба 600×400×200", "desc": "Удобная коробка 600×400×200 мм для плоских грузов. Трёхслойный картон T23, самосборная, упаковка 10 шт.", "price": 68.0, "weight": 400, "length": 60, "width": 40, "height": 20},
+    {"name": "Короба 200×300×300", "desc": "Коробка 200×300×300 мм для небольших товаров. Трёхслойный гофрокартон T23, самосборная, 10 шт.", "price": 60.0, "weight": 400, "length": 20, "width": 30, "height": 30},
+    {"name": "Короба 95×95×103", "desc": "Компактная коробка 95×95×103 мм для мелких предметов. Трёхслойный картон T23, самосборная, упаковка 10 шт.", "price": 22.0, "weight": 200, "length": 9.5, "width": 9.5, "height": 10.3},
+    {"name": "Короба 50×50×225", "desc": "Узкая коробка 50×50×225 мм для длинных товаров. Трёхслойный гофрокартон T23, самосборная, 10 шт.", "price": 16.0, "weight": 200, "length": 5, "width": 5, "height": 22.5},
+    {"name": "Короба 100×100×290", "desc": "Коробка 100×100×290 мм для средних по длине предметов. Трёхслойный картон T23, самосборная, упаковка 10 шт.", "price": 12.09, "weight": 200, "length": 10, "width": 10, "height": 29},
+    {"name": "Короба 1040×165×45", "desc": "Длинная плоская коробка 1040×165×45 мм для крупных плоских грузов. Трёхслойный гофрокартон T23, самосборная, 10 шт.", "price": 29.04, "weight": 600, "length": 104, "width": 16.5, "height": 4.5},
+    {"name": "Короба 110×110×335", "desc": "Коробка 110×110×335 мм для длинных тонких предметов. Трёхслойный картон T23, самосборная, упаковка 10 шт.", "price": 20.3, "weight": 300, "length": 11, "width": 11, "height": 33.5},
+    {"name": "Короба 165×105×55", "desc": "Коробка 165×105×55 мм для компактных товаров. Трёхслойный гофрокартон T23, самосборная, 10 шт.", "price": 11.08, "weight": 200, "length": 16.5, "width": 10.5, "height": 5.5},
+    {"name": "Короба 170×170×80", "desc": "Квадратная коробка 170×170×80 мм для небольших квадратных предметов. Трёхслойный картон T23, самосборная, упаковка 10 шт.", "price": 9.96, "weight": 200, "length": 17, "width": 17, "height": 8},
+    {"name": "Короба 220×130×130*", "desc": "Коробка 220×130×130 мм для небольших товаров среднего размера. Трёхслойный гофрокартон T23, самосборная, 10 шт.", "price": 9.99, "weight": 200, "length": 22, "width": 13, "height": 13},
+    {"name": "Короба 220×130×180", "desc": "Коробка 220×130×180 мм для компактных грузов. Трёхслойный картон T23, самосборная, упаковка 10 шт.", "price": 11.47, "weight": 200, "length": 22, "width": 13, "height": 18},
+    {"name": "Короба 240×135×50", "desc": "Плоская коробка 240×135×50 мм для небольших плоских предметов. Трёхслойный гофрокартон T23, самосборная, 10 шт.", "price": 16.98, "weight": 300, "length": 24, "width": 13.5, "height": 5},
+    {"name": "Короба 280×150×350", "desc": "Коробка 280×150×350 мм для средних габаритных товаров. Трёхслойный картон T23, самосборная, упаковка 10 шт.", "price": 23.41, "weight": 400, "length": 28, "width": 15, "height": 35},
+    {"name": "Короба 300×200×300", "desc": "Коробка 300×200×300 мм для универсальных грузов. Трёхслойный гофрокартон T23, самосборная, 10 шт.", "price": 23.55, "weight": 400, "length": 30, "width": 20, "height": 30},
+    {"name": "Короба 380×240×290", "desc": "Коробка 380×240×290 мм для крупных товаров. Трёхслойный картон T23, самосборная, упаковка 10 шт.", "price": 33.0, "weight": 500, "length": 38, "width": 24, "height": 29},
+    {"name": "Короба 590×195×120", "desc": "Длинная коробка 590×195×120 мм для крупных длинных предметов. Трёхслойный гофрокартон T23, самосборная, 10 шт.", "price": 57.72, "weight": 500, "length": 59, "width": 19.5, "height": 12},
+    {"name": "Короба 785×235×215", "desc": "Крупная коробка 785×235×215 мм для больших грузов. Трёхслойный картон T23, самосборная, упаковка 10 шт.", "price": 42.87, "weight": 600, "length": 78.5, "width": 23.5, "height": 21.5},
+    {"name": "Ведро пластиковое пищевое 20 л с крышкой", "desc": "🪣 Универсальное пищевое ведро 20 л — идеально для хранения продуктов, заготовок, воды. Толстый пластик (1 кг), герметичная крышка, удобная ручка. Б/у из-под сиропа, состояние идеальное: без сколов, трещин и запаха.", "price": 300.0, "weight": 1100, "length": 35, "width": 35, "height": 40},
+    {"name": "Набор эфирных масел PARLAB, 5 шт", "desc": "🌿 Натуральный набор 100% эфирных масел (чайное дерево, апельсин, мята, лаванда, иланг-иланг). В подарочной упаковке, объём 50 мл.", "price": 696.0, "weight": 400, "length": 20, "width": 15, "height": 5},
+    {"name": "Прокладки для собак PitoMir, 30 шт", "desc": "🐾 Гипоаллергенные впитывающие прокладки для собак и кошек 30 шт. Дышащий материал, суперабсорбент, липкий слой.", "price": 432.0, "weight": 600, "length": 30, "width": 20, "height": 10},
+    {"name": "Садовая дорожка модульная GUSEV GARDEN, 27 шт", "desc": "🌱 Садовая модульная дорожка 27 модулей (2.43 м²). Прочный пластик, устойчивый к погоде и нагрузкам. Легко собирается без инструментов.", "price": 2676.0, "weight": 5700, "length": 32, "width": 31, "height": 26},
+    {"name": "Садовая дорожка модульная GUSEV GARDEN, 9 шт", "desc": "🌱 Садовая модульная дорожка 9 модулей (0.81 м²). Компактный вариант для небольших участков.", "price": 1177.0, "weight": 2000, "length": 32, "width": 32, "height": 9},
+    {"name": "Скобы садовые с фиксаторами GUSEV GARDEN, 100 шт", "desc": "🧷 Надёжные садовые скобы из оцинкованной стали с пластиковыми фиксаторами, 100 шт. Заострённые концы легко входят в грунт.", "price": 670.0, "weight": 1820, "length": 23, "width": 18, "height": 10},
+    {"name": "Заборчик садовый раздвижной декоративный GUSEV GARDEN", "desc": "🌳 Декоративный раздвижной заборчик из WPC (древесно-пластиковый композит). Высота 40 см, длина 90 см (раздвижной).", "price": 923.0, "weight": 400, "length": 45, "width": 23, "height": 3},
+    {"name": "Печь походная отопительная для палатки и бани", "desc": "🔥 Дровяная печь из стали Aisi 439, компактная, с дымоходом, каменкой, быстросъёмными ножками. Идеальна для палаток, бань, зимней рыбалки.", "price": 18000.0, "weight": 23000, "length": 67, "width": 30, "height": 45}
 ]
-
-PRODUCTS_LIST = "\n".join([f"- {p['name']}: {p['price']:.2f} ₽, вес ~{p['weight']}г, {p['desc']}" for p in PRODUCTS])
 
 SYSTEM_PROMPT = (
     "Ты — продавец-консультант интернет-магазина EVA.store.\n"
     "Ты помогаешь клиентам с выбором и оформлением заказов.\n\n"
-    "АССОРТИМЕНТ (цены, вес, описание):\n"
-    f"{PRODUCTS_LIST}\n\n"
-    "АЛГОРИТМ РАБОТЫ:\n"
-    "- Если клиент хочет купить — узнай его город.\n"
-    "- Когда клиент назвал город — рассчитай доставку и покажи итог (товар + доставка).\n"
-    "- Затем спроси номер телефона.\n"
+    "У нас есть следующие товары (всегда используй эти названия и цены):\n"
+    + "\n".join([f"- {p['name']}: {p['price']} ₽, {p['desc']}" for p in PRODUCTS]) +
+    "\n\nАЛГОРИТМ РАБОТЫ:\n"
+    "- Если клиент выражает желание купить или спрашивает цену/доставку, определи город и товар.\n"
+    "- Для расчёта доставки вызови функцию calculate_delivery.\n"
+    "- После расчёта спроси номер телефона.\n"
     "- Когда клиент дал телефон — сообщи, что заявка передана менеджеру.\n"
     "- Отвечай кратко, дружелюбно, используй техники продаж.\n"
-    "- Если клиент не назвал город, а спросил про доставку — сначала узнай город."
+    "- Если клиент спрашивает о товаре — дай информацию из списка выше.\n"
+    "- Если клиент спрашивает про доставку, но не назвал город — сначала попроси назвать город."
 )
 
 CITY_CODES = {
@@ -68,25 +68,6 @@ CITY_CODES = {
     "новосибирск": 137,
     "екатеринбург": 270,
 }
-
-def find_product_by_text(text):
-    """Определяет товар по тексту сообщения"""
-    text_lower = text.lower()
-    # Сначала ищем по ключевым словам
-    if "ведр" in text_lower:
-        for p in PRODUCTS:
-            if "ведр" in p["name"].lower():
-                return p
-    if "короб" in text_lower:
-        for p in PRODUCTS:
-            if "короб" in p["name"].lower():
-                return p
-    # Если не нашли, ищем по полному названию
-    for p in PRODUCTS:
-        if p["name"].lower() in text_lower:
-            return p
-    # Если ничего не найдено, возвращаем первый товар
-    return PRODUCTS[0]
 
 def get_cdek_token():
     try:
@@ -101,10 +82,10 @@ def get_cdek_token():
         )
         if response.status_code == 200:
             return response.json()["access_token"]
-        print(f"⚠️ Ошибка получения токена СДЭК: {response.status_code} {response.text[:200]}")
+        print(f"⚠️ Ошибка токена СДЭК: {response.status_code} {response.text[:200]}")
         return None
     except Exception as e:
-        print(f"⚠️ Ошибка получения токена СДЭК: {e}")
+        print(f"⚠️ Ошибка токена СДЭК: {e}")
         return None
 
 def get_city_code(city_name: str) -> int:
@@ -131,10 +112,20 @@ def get_city_code(city_name: str) -> int:
         print(f"⚠️ Ошибка поиска города: {e}")
     return None
 
-def calculate_delivery(city_name: str, product: dict) -> dict:
+def calculate_delivery(city_name: str, product_name: str) -> dict:
+    """Функция, вызываемая ИИ для расчёта доставки"""
+    # Находим товар по названию
+    product = None
+    for p in PRODUCTS:
+        if p["name"].lower() == product_name.lower() or product_name.lower() in p["name"].lower():
+            product = p
+            break
+    if not product:
+        return {"error": f"Товар '{product_name}' не найден в ассортименте"}
+
     city_code = get_city_code(city_name)
     if not city_code:
-        return {"error": "Не удалось определить город"}
+        return {"error": f"Не удалось определить код города '{city_name}'"}
 
     token = get_cdek_token()
     if not token:
@@ -179,39 +170,28 @@ def calculate_delivery(city_name: str, product: dict) -> dict:
                                 "max": tariff_info.get("period_max", 3)
                             }
             else:
-                last_error = f"СДЭК вернул {response.status_code}: {response.text[:200]}"
-                print(f"⚠️ Ошибка при тарифе {tariff}: {last_error}")
+                last_error = f"СДЭК вернул {response.status_code}"
         except Exception as e:
             last_error = str(e)
-            print(f"⚠️ Ошибка при тарифе {tariff}: {e}")
             continue
 
     if best_price is not None:
         return {
             "price": best_price,
             "days_min": best_days["min"],
-            "days_max": best_days["max"]
+            "days_max": best_days["max"],
+            "product_name": product["name"],
+            "product_price": product["price"]
         }
     else:
         return {"error": last_error or "Не удалось рассчитать доставку"}
 
-def extract_city(text: str) -> str:
-    text_lower = text.lower()
-    for city in CITY_CODES.keys():
-        if city in text_lower:
-            return city
-    return None
-
-def extract_phone(text: str) -> str:
-    phone = re.search(r'\+?\d[\d\s\-\(\)]{7,}\d', text)
-    if phone:
-        return phone.group().strip()
-    return None
-
-def ask_aitunnel(user_msg, history=None):
+def ask_aitunnel_with_tools(user_msg, history=None, tools=None):
+    """Вызов DeepSeek через AITunnel с поддержкой function calling"""
     if history is None:
         history = [{"role": "system", "content": SYSTEM_PROMPT}]
     history.append({"role": "user", "content": user_msg})
+
     url = "https://api.aitunnel.ru/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {AITUNNEL_API_KEY}",
@@ -220,29 +200,58 @@ def ask_aitunnel(user_msg, history=None):
     data = {
         "model": "deepseek-chat",
         "messages": history,
-        "temperature": 0.8,
-        "max_tokens": 600
+        "temperature": 0.7,
+        "max_tokens": 600,
+        "tools": tools,
+        "tool_choice": "auto"
     }
+
     try:
         response = requests.post(url, headers=headers, json=data, timeout=60)
         if response.status_code == 200:
-            answer = response.json()["choices"][0]["message"]["content"]
-            history.append({"role": "assistant", "content": answer})
-            return answer, history
+            return response.json()
         else:
-            return "❌ Ошибка AITunnel. Попробуйте позже.", history
+            print(f"⚠️ Ошибка AITunnel: {response.status_code} {response.text[:200]}")
+            return None
     except Exception as e:
-        return f"❌ Ошибка: {str(e)[:100]}", history
+        print(f"⚠️ Ошибка запроса к AITunnel: {e}")
+        return None
 
 def main():
     print("🔄 Подключаюсь к VK...")
     vk_session = VkApi(token=VK_TOKEN)
     longpoll = VkLongPoll(vk_session, wait=90)
     vk = vk_session.get_api()
-    print("✅ Бот запущен (с СДЭК и отладкой)")
+    print("✅ Бот запущен (function calling)")
 
-    dialogs = {}
-    order_data = {}
+    # Определяем доступные функции (tools) для ИИ
+    tools = [
+        {
+            "type": "function",
+            "function": {
+                "name": "calculate_delivery",
+                "description": "Рассчитывает стоимость доставки для указанного города и товара. Используй эту функцию, когда клиент хочет купить товар и назвал город.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "city_name": {
+                            "type": "string",
+                            "description": "Название города клиента, например 'Москва' или 'Санкт-Петербург'"
+                        },
+                        "product_name": {
+                            "type": "string",
+                            "description": "Точное название товара из списка, например 'Ведро пластиковое пищевое 20 л с крышкой'"
+                        }
+                    },
+                    "required": ["city_name", "product_name"]
+                }
+            }
+        }
+    ]
+
+    dialogs = {}           # история диалога
+    order_data = {}        # временные данные по заказу
+    pending_tool_calls = {} # ожидание вызова функции для подтверждения
 
     for event in longpoll.listen():
         if event.type == VkEventType.MESSAGE_NEW and event.to_me:
@@ -257,82 +266,127 @@ def main():
             except:
                 user_name = "Клиент"
 
-            city_found = extract_city(text)
-            phone_found = extract_phone(text)
-
-            if city_found:
-                product = find_product_by_text(text)
-                result = calculate_delivery(city_found, product)
-                if "error" in result:
-                    delivery_text = f"❌ {result['error']}"
-                    total = None
-                    # Сохраняем ошибку в лог
-                    print(f"⚠️ Ошибка доставки для {city_found}: {result['error']}")
-                else:
-                    total = product["price"] + result["price"]
-                    delivery_text = (
-                        f"🚚 Доставка: {result['price']} ₽ ({result['days_min']}-{result['days_max']} дн.)\n"
-                        f"💰 Итого: {total} ₽"
-                    )
-                if uid not in order_data:
-                    order_data[uid] = {}
-                order_data[uid]["city"] = city_found
-                order_data[uid]["product"] = product
-                order_data[uid]["delivery"] = result if "error" not in result else None
-                order_data[uid]["total"] = total
-
-                # Отправляем ответ с доставкой (или с ошибкой)
-                answer = (
-                    f"📦 {product['name']} — {product['price']} ₽\n"
-                    f"{delivery_text}\n\n"
-                    f"Для оформления заказа нужен ваш номер телефона. Напишите его, пожалуйста."
-                )
-                vk.messages.send(user_id=uid, message=answer, random_id=0)
-                if uid not in dialogs:
-                    dialogs[uid] = [{"role": "system", "content": SYSTEM_PROMPT}]
-                dialogs[uid].append({"role": "assistant", "content": answer})
-                continue
-
-            if phone_found and uid in order_data and order_data[uid].get("city"):
-                city = order_data[uid]["city"]
-                product = order_data[uid]["product"]
-                total = order_data[uid].get("total")
-                delivery = order_data[uid].get("delivery")
-                delivery_info = ""
-                if delivery:
-                    delivery_info = f"Доставка: {delivery['price']} ₽, итого: {total} ₽"
-                else:
-                    delivery_info = "Доставка будет рассчитана менеджером"
-
-                for manager_id in MANAGER_IDS:
-                    try:
-                        vk.messages.send(
-                            user_id=manager_id,
-                            message=(
-                                f"🛒 ЗАЯВКА от {user_name}!\n"
-                                f"Товар: {product['name']}\n"
-                                f"Город: {city}\n"
-                                f"Телефон: {phone_found}\n"
-                                f"{delivery_info}"
-                            ),
-                            random_id=0
-                        )
-                    except:
-                        pass
-                answer = "✅ Заявка оформлена! Менеджер свяжется с вами по указанному телефону. Спасибо! 😊"
-                vk.messages.send(user_id=uid, message=answer, random_id=0)
-                if uid not in dialogs:
-                    dialogs[uid] = [{"role": "system", "content": SYSTEM_PROMPT}]
-                dialogs[uid].append({"role": "assistant", "content": answer})
-                del order_data[uid]
-                continue
-
+            # Получаем историю диалога для пользователя
             if uid not in dialogs:
                 dialogs[uid] = [{"role": "system", "content": SYSTEM_PROMPT}]
 
-            answer, new_history = ask_aitunnel(text, dialogs[uid])
-            dialogs[uid] = new_history
-            vk.messages.send(user_id=uid, message=answer, random_id=0)
+            # Отправляем запрос к ИИ с возможностью вызова функций
+            response = ask_aitunnel_with_tools(text, dialogs[uid], tools)
+            if response is None:
+                vk.messages.send(user_id=uid, message="❌ Ошибка сервиса ИИ. Попробуйте позже.", random_id=0)
+                continue
+
+            msg = response["choices"][0]["message"]
+
+            # Если ИИ хочет вызвать функцию
+            if "tool_calls" in msg and msg["tool_calls"]:
+                tool_call = msg["tool_calls"][0]
+                function_name = tool_call["function"]["name"]
+                arguments = json.loads(tool_call["function"]["arguments"])
+
+                if function_name == "calculate_delivery":
+                    city_name = arguments.get("city_name")
+                    product_name = arguments.get("product_name")
+                    if not city_name or not product_name:
+                        vk.messages.send(user_id=uid, message="❌ Не удалось определить город или товар. Уточните, пожалуйста.", random_id=0)
+                        continue
+
+                    # Выполняем расчёт доставки
+                    result = calculate_delivery(city_name, product_name)
+                    if "error" in result:
+                        delivery_result = f"❌ {result['error']}"
+                        total = None
+                    else:
+                        total = result["product_price"] + result["price"]
+                        delivery_result = (
+                            f"🚚 Доставка: {result['price']} ₽ ({result['days_min']}-{result['days_max']} дн.)\n"
+                            f"💰 Итого: {total} ₽"
+                        )
+                        # Сохраняем данные в order_data
+                        if uid not in order_data:
+                            order_data[uid] = {}
+                        order_data[uid]["city"] = city_name
+                        order_data[uid]["product"] = product_name
+                        order_data[uid]["product_price"] = result["product_price"]
+                        order_data[uid]["delivery_price"] = result["price"]
+                        order_data[uid]["total"] = total
+
+                    # Добавляем результат функции в историю (для продолжения диалога)
+                    function_response = {
+                        "role": "tool",
+                        "tool_call_id": tool_call["id"],
+                        "content": delivery_result
+                    }
+                    dialogs[uid].append(msg)  # добавляем сообщение ассистента с вызовом
+                    dialogs[uid].append(function_response)
+
+                    # Повторный запрос к ИИ с результатом функции
+                    second_response = ask_aitunnel_with_tools("", dialogs[uid], tools)
+                    if second_response:
+                        final_msg = second_response["choices"][0]["message"]
+                        answer = final_msg.get("content", "✅ Доставка рассчитана. Укажите номер телефона для заказа.")
+                        vk.messages.send(user_id=uid, message=answer, random_id=0)
+                        # Добавляем ответ в историю
+                        if "content" in final_msg:
+                            dialogs[uid].append({"role": "assistant", "content": final_msg["content"]})
+                    else:
+                        vk.messages.send(user_id=uid, message="❌ Ошибка обработки. Попробуйте позже.", random_id=0)
+                else:
+                    vk.messages.send(user_id=uid, message="❌ Неизвестная функция.", random_id=0)
+                continue
+
+            # Если ИИ просто ответил текстом (без вызова функции)
+            if "content" in msg:
+                answer = msg["content"]
+                vk.messages.send(user_id=uid, message=answer, random_id=0)
+                dialogs[uid].append({"role": "assistant", "content": answer})
+                # Если в ответе просит телефон, запоминаем, что ожидаем телефон
+                if "телефон" in answer.lower() or "номер" in answer.lower():
+                    if uid not in order_data:
+                        order_data[uid] = {}
+                    order_data[uid]["awaiting_phone"] = True
+
+            # Обработка ввода телефона (если бот его запросил)
+            if uid in order_data and order_data[uid].get("awaiting_phone"):
+                # Проверяем, похоже ли сообщение на телефон
+                phone_match = re.search(r'\+?\d[\d\s\-\(\)]{7,}\d', text)
+                if phone_match:
+                    phone = phone_match.group().strip()
+                    # Получаем сохранённые данные заказа
+                    city = order_data[uid].get("city", "не указан")
+                    product = order_data[uid].get("product", "не указан")
+                    total = order_data[uid].get("total", "не рассчитана")
+                    delivery_info = ""
+                    if order_data[uid].get("delivery_price") is not None:
+                        delivery_info = f"Доставка: {order_data[uid]['delivery_price']} ₽, итого: {total} ₽"
+                    else:
+                        delivery_info = "Доставка будет рассчитана менеджером"
+
+                    # Отправляем заявку менеджерам
+                    for manager_id in MANAGER_IDS:
+                        try:
+                            vk.messages.send(
+                                user_id=manager_id,
+                                message=(
+                                    f"🛒 ЗАЯВКА от {user_name}!\n"
+                                    f"Товар: {product}\n"
+                                    f"Город: {city}\n"
+                                    f"Телефон: {phone}\n"
+                                    f"{delivery_info}"
+                                ),
+                                random_id=0
+                            )
+                        except:
+                            pass
+                    answer = "✅ Заявка оформлена! Менеджер свяжется с вами по указанному телефону. Спасибо! 😊"
+                    vk.messages.send(user_id=uid, message=answer, random_id=0)
+                    dialogs[uid].append({"role": "assistant", "content": answer})
+                    # Очищаем данные заказа
+                    if uid in order_data:
+                        del order_data[uid]
+                else:
+                    # Если не похоже на телефон, но мы ждём телефон, можно переспросить
+                    pass
 
 if __name__ == "__main__":
     main()
