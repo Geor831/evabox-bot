@@ -10,52 +10,59 @@ VK_TOKEN = "vk1.a.vedeEaKBa4UKyV0RYddcBqMts_JJrvNynhr8OPClZfx2l6JQVzrFM2v9fXIm74
 MANAGER_IDS = [29279564, 598512076]
 AITUNNEL_API_KEY = "sk-aitunnel-EJz97YJpiOwnaObmGNjf6mU8cT2OdP8L"
 
-# ===== ФИКСИРОВАННЫЕ ЦЕНЫ ДОСТАВКИ =====
+# ===== НАСТРОЙКИ СДЭК =====
+CDEK_CLIENT_ID = "FDF0yHIab572TjWg6Kuo5uIzY5jcyKQ2"
+CDEK_CLIENT_SECRET = "B8UDRKFzfbMzMgZ9cwrOKsEwPodAloGN"
+SENDER_CITY_CODE = 1177  # Владимир
+
+# 👇 ТАРИФЫ, КОТОРЫЕ ТЫ ВКЛЮЧИЛ В НАСТРОЙКАХ ПРИЛОЖЕНИЯ
+TARIFF_CODES = [136, 137, 138]   # 136 — склад-склад, 137 — склад-дверь, 138 — экономичная склад-дверь
+
+# 👇 Фиксированные цены (fallback, если API не отвечает)
 DELIVERY_PRICES = {
     "москва": 350,
-    "самара": 430,          # ← твоя цена из договора
+    "самара": 430,
     "санкт-петербург": 450,
     "питер": 450,
     "владимир": 0,
     "новосибирск": 500,
     "екатеринбург": 480,
 }
-DEFAULT_DELIVERY_PRICE = None  # если None, пишем "рассчитает менеджер"
 # ===============================================
 
 PRODUCTS = [
-    {"name": "Короба 600×400×400", "desc": "Крупная коробка для габаритных грузов. Трёхслойный гофрокартон T23, самосборная, упаковка 10 шт.", "price": 70.0},
-    {"name": "Короба 600×400×200", "desc": "Удобная коробка 600×400×200 мм для плоских грузов.", "price": 68.0},
-    {"name": "Короба 200×300×300", "desc": "Коробка 200×300×300 мм для небольших товаров.", "price": 60.0},
-    {"name": "Короба 95×95×103", "desc": "Компактная коробка 95×95×103 мм для мелких предметов.", "price": 22.0},
-    {"name": "Короба 50×50×225", "desc": "Узкая коробка 50×50×225 мм для длинных товаров.", "price": 16.0},
-    {"name": "Короба 100×100×290", "desc": "Коробка 100×100×290 мм для средних по длине предметов.", "price": 12.09},
-    {"name": "Короба 1040×165×45", "desc": "Длинная плоская коробка 1040×165×45 мм для крупных плоских грузов.", "price": 29.04},
-    {"name": "Короба 110×110×335", "desc": "Коробка 110×110×335 мм для длинных тонких предметов.", "price": 20.3},
-    {"name": "Короба 165×105×55", "desc": "Коробка 165×105×55 мм для компактных товаров.", "price": 11.08},
-    {"name": "Короба 170×170×80", "desc": "Квадратная коробка 170×170×80 мм.", "price": 9.96},
-    {"name": "Короба 220×130×130*", "desc": "Коробка 220×130×130 мм для небольших товаров среднего размера.", "price": 9.99},
-    {"name": "Короба 220×130×180", "desc": "Коробка 220×130×180 мм для компактных грузов.", "price": 11.47},
-    {"name": "Короба 240×135×50", "desc": "Плоская коробка 240×135×50 мм для небольших плоских предметов.", "price": 16.98},
-    {"name": "Короба 280×150×350", "desc": "Коробка 280×150×350 мм для средних габаритных товаров.", "price": 23.41},
-    {"name": "Короба 300×200×300", "desc": "Коробка 300×200×300 мм для универсальных грузов.", "price": 23.55},
-    {"name": "Короба 380×240×290", "desc": "Коробка 380×240×290 мм для крупных товаров.", "price": 33.0},
-    {"name": "Короба 590×195×120", "desc": "Длинная коробка 590×195×120 мм для крупных длинных предметов.", "price": 57.72},
-    {"name": "Короба 785×235×215", "desc": "Крупная коробка 785×235×215 мм для больших грузов.", "price": 42.87},
-    {"name": "Ведро пластиковое пищевое 20 л с крышкой", "desc": "🪣 Универсальное пищевое ведро 20 л — идеально для хранения продуктов, заготовок, воды. Толстый пластик (1 кг), герметичная крышка, удобная ручка. Б/у из-под сиропа, состояние идеальное.", "price": 300.0},
-    {"name": "Набор эфирных масел PARLAB, 5 шт", "desc": "🌿 Натуральный набор 100% эфирных масел (чайное дерево, апельсин, мята, лаванда, иланг-иланг). В подарочной упаковке, объём 50 мл.", "price": 696.0},
-    {"name": "Прокладки для собак PitoMir, 30 шт", "desc": "🐾 Гипоаллергенные впитывающие прокладки для собак и кошек 30 шт. Дышащий материал, суперабсорбент, липкий слой.", "price": 432.0},
-    {"name": "Садовая дорожка модульная GUSEV GARDEN, 27 шт", "desc": "🌱 Садовая модульная дорожка 27 модулей (2.43 м²). Прочный пластик, устойчивый к погоде и нагрузкам. Легко собирается без инструментов.", "price": 2676.0},
-    {"name": "Садовая дорожка модульная GUSEV GARDEN, 9 шт", "desc": "🌱 Садовая модульная дорожка 9 модулей (0.81 м²). Компактный вариант для небольших участков.", "price": 1177.0},
-    {"name": "Скобы садовые с фиксаторами GUSEV GARDEN, 100 шт", "desc": "🧷 Надёжные садовые скобы из оцинкованной стали с пластиковыми фиксаторами, 100 шт. Заострённые концы легко входят в грунт.", "price": 670.0},
-    {"name": "Заборчик садовый раздвижной декоративный GUSEV GARDEN", "desc": "🌳 Декоративный раздвижной заборчик из WPC (древесно-пластиковый композит). Высота 40 см, длина 90 см (раздвижной).", "price": 923.0},
-    {"name": "Печь походная отопительная для палатки и бани", "desc": "🔥 Дровяная печь из стали Aisi 439, компактная, с дымоходом, каменкой, быстросъёмными ножками. Идеальна для палаток, бань, зимней рыбалки.", "price": 18000.0}
+    {"name": "Короба 600×400×400", "desc": "Крупная коробка для габаритных грузов. Трёхслойный гофрокартон T23, самосборная, упаковка 10 шт.", "price": 70.0, "weight": 500, "length": 60, "width": 40, "height": 40},
+    {"name": "Короба 600×400×200", "desc": "Удобная коробка 600×400×200 мм для плоских грузов.", "price": 68.0, "weight": 400, "length": 60, "width": 40, "height": 20},
+    {"name": "Короба 200×300×300", "desc": "Коробка 200×300×300 мм для небольших товаров.", "price": 60.0, "weight": 400, "length": 20, "width": 30, "height": 30},
+    {"name": "Короба 95×95×103", "desc": "Компактная коробка 95×95×103 мм для мелких предметов.", "price": 22.0, "weight": 200, "length": 9.5, "width": 9.5, "height": 10.3},
+    {"name": "Короба 50×50×225", "desc": "Узкая коробка 50×50×225 мм для длинных товаров.", "price": 16.0, "weight": 200, "length": 5, "width": 5, "height": 22.5},
+    {"name": "Короба 100×100×290", "desc": "Коробка 100×100×290 мм для средних по длине предметов.", "price": 12.09, "weight": 200, "length": 10, "width": 10, "height": 29},
+    {"name": "Короба 1040×165×45", "desc": "Длинная плоская коробка 1040×165×45 мм для крупных плоских грузов.", "price": 29.04, "weight": 600, "length": 104, "width": 16.5, "height": 4.5},
+    {"name": "Короба 110×110×335", "desc": "Коробка 110×110×335 мм для длинных тонких предметов.", "price": 20.3, "weight": 300, "length": 11, "width": 11, "height": 33.5},
+    {"name": "Короба 165×105×55", "desc": "Коробка 165×105×55 мм для компактных товаров.", "price": 11.08, "weight": 200, "length": 16.5, "width": 10.5, "height": 5.5},
+    {"name": "Короба 170×170×80", "desc": "Квадратная коробка 170×170×80 мм.", "price": 9.96, "weight": 200, "length": 17, "width": 17, "height": 8},
+    {"name": "Короба 220×130×130*", "desc": "Коробка 220×130×130 мм для небольших товаров среднего размера.", "price": 9.99, "weight": 200, "length": 22, "width": 13, "height": 13},
+    {"name": "Короба 220×130×180", "desc": "Коробка 220×130×180 мм для компактных грузов.", "price": 11.47, "weight": 200, "length": 22, "width": 13, "height": 18},
+    {"name": "Короба 240×135×50", "desc": "Плоская коробка 240×135×50 мм для небольших плоских предметов.", "price": 16.98, "weight": 300, "length": 24, "width": 13.5, "height": 5},
+    {"name": "Короба 280×150×350", "desc": "Коробка 280×150×350 мм для средних габаритных товаров.", "price": 23.41, "weight": 400, "length": 28, "width": 15, "height": 35},
+    {"name": "Короба 300×200×300", "desc": "Коробка 300×200×300 мм для универсальных грузов.", "price": 23.55, "weight": 400, "length": 30, "width": 20, "height": 30},
+    {"name": "Короба 380×240×290", "desc": "Коробка 380×240×290 мм для крупных товаров.", "price": 33.0, "weight": 500, "length": 38, "width": 24, "height": 29},
+    {"name": "Короба 590×195×120", "desc": "Длинная коробка 590×195×120 мм для крупных длинных предметов.", "price": 57.72, "weight": 500, "length": 59, "width": 19.5, "height": 12},
+    {"name": "Короба 785×235×215", "desc": "Крупная коробка 785×235×215 мм для больших грузов.", "price": 42.87, "weight": 600, "length": 78.5, "width": 23.5, "height": 21.5},
+    {"name": "Ведро пластиковое пищевое 20 л с крышкой", "desc": "🪣 Универсальное пищевое ведро 20 л — идеально для хранения продуктов, заготовок, воды. Толстый пластик (1 кг), герметичная крышка, удобная ручка. Б/у из-под сиропа, состояние идеальное.", "price": 300.0, "weight": 1100, "length": 35, "width": 35, "height": 40},
+    {"name": "Набор эфирных масел PARLAB, 5 шт", "desc": "🌿 Натуральный набор 100% эфирных масел (чайное дерево, апельсин, мята, лаванда, иланг-иланг). В подарочной упаковке, объём 50 мл.", "price": 696.0, "weight": 400, "length": 20, "width": 15, "height": 5},
+    {"name": "Прокладки для собак PitoMir, 30 шт", "desc": "🐾 Гипоаллергенные впитывающие прокладки для собак и кошек 30 шт. Дышащий материал, суперабсорбент, липкий слой.", "price": 432.0, "weight": 600, "length": 30, "width": 20, "height": 10},
+    {"name": "Садовая дорожка модульная GUSEV GARDEN, 27 шт", "desc": "🌱 Садовая модульная дорожка 27 модулей (2.43 м²). Прочный пластик, устойчивый к погоде и нагрузкам. Легко собирается без инструментов.", "price": 2676.0, "weight": 5700, "length": 32, "width": 31, "height": 26},
+    {"name": "Садовая дорожка модульная GUSEV GARDEN, 9 шт", "desc": "🌱 Садовая модульная дорожка 9 модулей (0.81 м²). Компактный вариант для небольших участков.", "price": 1177.0, "weight": 2000, "length": 32, "width": 32, "height": 9},
+    {"name": "Скобы садовые с фиксаторами GUSEV GARDEN, 100 шт", "desc": "🧷 Надёжные садовые скобы из оцинкованной стали с пластиковыми фиксаторами, 100 шт. Заострённые концы легко входят в грунт.", "price": 670.0, "weight": 1820, "length": 23, "width": 18, "height": 10},
+    {"name": "Заборчик садовый раздвижной декоративный GUSEV GARDEN", "desc": "🌳 Декоративный раздвижной заборчик из WPC (древесно-пластиковый композит). Высота 40 см, длина 90 см (раздвижной).", "price": 923.0, "weight": 400, "length": 45, "width": 23, "height": 3},
+    {"name": "Печь походная отопительная для палатки и бани", "desc": "🔥 Дровяная печь из стали Aisi 439, компактная, с дымоходом, каменкой, быстросъёмными ножками. Идеальна для палаток, бань, зимней рыбалки.", "price": 18000.0, "weight": 23000, "length": 67, "width": 30, "height": 45}
 ]
 
 SYSTEM_PROMPT = (
     "Ты — продавец-консультант интернет-магазина EVA.store.\n"
     "Ты помогаешь клиентам с выбором и оформлением заказов.\n\n"
-    "У нас есть следующие товары (всегда используй эти nazvaniya и цены):\n"
+    "У нас есть следующие товары (всегда используй эти названия и цены):\n"
     + "\n".join([f"- {p['name']}: {p['price']} ₽, {p['desc']}" for p in PRODUCTS]) +
     "\n\nАЛГОРИТМ РАБОТЫ:\n"
     "- Если клиент выражает желание купить или спрашивает цену/доставку, определи город и товар.\n"
@@ -67,14 +74,71 @@ SYSTEM_PROMPT = (
     "- Если клиент спрашивает про доставку, но не назвал город — сначала попроси назвать город."
 )
 
-def get_delivery_price(city_name: str) -> int:
+CITY_CODES = {
+    "москва": 44,
+    "владимир": 1177,
+    "санкт-петербург": 2,
+    "питер": 2,
+    "новосибирск": 137,
+    "екатеринбург": 270,
+}
+
+def get_cdek_token():
+    try:
+        response = requests.post(
+            "https://api.cdek.ru/v2/oauth/token",
+            params={
+                "grant_type": "client_credentials",
+                "client_id": CDEK_CLIENT_ID,
+                "client_secret": CDEK_CLIENT_SECRET
+            },
+            timeout=30
+        )
+        if response.status_code == 200:
+            return response.json()["access_token"]
+        print(f"⚠️ Ошибка токена СДЭК: {response.status_code} {response.text[:200]}")
+        return None
+    except Exception as e:
+        print(f"⚠️ Ошибка токена СДЭК: {e}")
+        return None
+
+def get_city_code(city_name: str) -> int:
+    city_lower = city_name.lower().strip()
+    for name, code in CITY_CODES.items():
+        if name in city_lower:
+            return code
+    token = get_cdek_token()
+    if not token:
+        return None
+    try:
+        response = requests.get(
+            "https://api.cdek.ru/v2/city",
+            params={"q": city_lower},
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=30
+        )
+        if response.status_code == 200:
+            cities = response.json()
+            if cities and len(cities) > 0:
+                return cities[0]["code"]
+        print(f"⚠️ Ошибка поиска города: {response.status_code} {response.text[:200]}")
+    except Exception as e:
+        print(f"⚠️ Ошибка поиска города: {e}")
+    return None
+
+def get_delivery_price_fallback(city_name: str) -> int:
     city_lower = city_name.lower().strip()
     for key, price in DELIVERY_PRICES.items():
         if key in city_lower:
             return price
-    return DEFAULT_DELIVERY_PRICE
+    return None
 
 def calculate_delivery(city_name: str, product_name: str) -> dict:
+    """
+    Сначала пытается рассчитать доставку через API СДЭК, перебирая тарифы из TARIFF_CODES.
+    Если не получается — использует фиксированную цену из словаря.
+    """
+    # Находим товар
     product = None
     for p in PRODUCTS:
         if p["name"].lower() == product_name.lower() or product_name.lower() in p["name"].lower():
@@ -83,17 +147,74 @@ def calculate_delivery(city_name: str, product_name: str) -> dict:
     if not product:
         return {"error": f"Товар '{product_name}' не найден"}
 
-    price = get_delivery_price(city_name)
-    if price is None:
-        return {"error": "Доставка будет рассчитана менеджером"}
+    # Пытаемся получить реальную цену через API
+    city_code = get_city_code(city_name)
+    token = get_cdek_token()
+    if city_code and token:
+        package = {
+            "weight": product.get("weight", 500),
+        }
+        if "length" in product and "width" in product and "height" in product:
+            package["length"] = product["length"]
+            package["width"] = product["width"]
+            package["height"] = product["height"]
 
-    return {
-        "price": price,
-        "days_min": 2,
-        "days_max": 4,
-        "product_name": product["name"],
-        "product_price": product["price"]
-    }
+        best_price = None
+        best_days = None
+        for tariff in TARIFF_CODES:
+            try:
+                response = requests.post(
+                    "https://api.cdek.ru/v2/calculator/tariff",
+                    headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+                    json={
+                        "from_location": {"code": SENDER_CITY_CODE},
+                        "to_location": {"code": city_code},
+                        "packages": [package],
+                        "tariff_codes": [tariff]
+                    },
+                    timeout=30
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    if "tariff_codes" in data and len(data["tariff_codes"]) > 0:
+                        tariff_info = data["tariff_codes"][0]
+                        price = tariff_info.get("total_sum", 0)
+                        if price > 0:
+                            if best_price is None or price < best_price:
+                                best_price = price
+                                best_days = {
+                                    "min": tariff_info.get("period_min", 2),
+                                    "max": tariff_info.get("period_max", 4)
+                                }
+                else:
+                    print(f"⚠️ Тариф {tariff} вернул ошибку: {response.status_code}")
+            except Exception as e:
+                print(f"⚠️ Ошибка при тарифе {tariff}: {e}")
+                continue
+
+        if best_price is not None:
+            return {
+                "price": best_price,
+                "days_min": best_days["min"],
+                "days_max": best_days["max"],
+                "product_name": product["name"],
+                "product_price": product["price"],
+                "source": "api"
+            }
+
+    # Если API не сработал — используем фиксированную цену
+    fallback_price = get_delivery_price_fallback(city_name)
+    if fallback_price is not None:
+        return {
+            "price": fallback_price,
+            "days_min": 2,
+            "days_max": 4,
+            "product_name": product["name"],
+            "product_price": product["price"],
+            "source": "fallback"
+        }
+    else:
+        return {"error": "Доставка будет рассчитана менеджером"}
 
 def ask_aitunnel_with_tools(user_msg, history=None, tools=None):
     if history is None:
@@ -130,7 +251,7 @@ def main():
     vk_session = VkApi(token=VK_TOKEN)
     longpoll = VkLongPoll(vk_session, wait=90)
     vk = vk_session.get_api()
-    print("✅ Бот запущен (фиксированные тарифы)")
+    print("✅ Бот запущен (гибридный режим с СДЭК)")
 
     tools = [
         {
@@ -200,8 +321,10 @@ def main():
                         total = None
                     else:
                         total = result["product_price"] + result["price"]
+                        source_text = " (по API)" if result.get("source") == "api" else " (по тарифу)"
                         delivery_result = (
-                            f"🚚 Доставка: {result['price']} ₽ (2-4 дня)\n"
+                            f"🚚 Доставка{source_text}: {result['price']} ₽\n"
+                            f"📦 Срок: {result['days_min']}-{result['days_max']} дня(ей)\n"
                             f"💰 Итого: {total} ₽"
                         )
                         if uid not in order_data:
