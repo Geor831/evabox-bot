@@ -85,7 +85,6 @@ def get_city_code(city_name):
     return None
 
 def calculate_delivery(city_name, product):
-    # Для Владимира — самовывоз, 0 ₽
     if "владимир" in city_name.lower():
         return {"price": 0, "days_min": 0, "days_max": 0}
 
@@ -139,6 +138,67 @@ def calculate_delivery(city_name, product):
     else:
         return {"error": "Не удалось рассчитать доставку"}
 
+def create_cdek_order(city_name, product, phone, client_name, quantity=1):
+    """
+    Создаёт заказ в СДЭК через API.
+    Возвращает {'success': True, 'track_number': '...'} или {'error': '...'}
+    """
+    city_code = get_city_code(city_name)
+    if not city_code:
+        return {"error": "Не удалось определить город"}
+
+    token = get_cdek_token()
+    if not token:
+        return {"error": "Не удалось получить токен СДЭК"}
+
+    total_weight = product["weight"] * quantity
+    package = {"weight": total_weight}
+    if "length" in product and "width" in product and "height" in product:
+        package["length"] = product["length"]
+        package["width"] = product["width"]
+        package["height"] = product["height"]
+
+    order_data = {
+        "type": 1,
+        "number": f"EVA-{int(time.time())}",
+        "tariff_code": 136,
+        "comment": f"Заказ от {client_name}, товар: {product['name']}",
+        "sender": {
+            "name": "EVA.store",
+            "phone": "+79056161515",
+            "address": SENDER_ADDRESS
+        },
+        "recipient": {
+            "name": client_name,
+            "phone": phone,
+            "address": {
+                "city_code": city_code,
+                "street": "ул. Центральная",
+                "house": "1"
+            }
+        },
+        "packages": [package]
+    }
+
+    try:
+        response = requests.post(
+            "https://api.cdek.ru/v2/orders",
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            json=order_data,
+            timeout=60
+        )
+        if response.status_code == 200:
+            data = response.json()
+            if "entity" in data and "uuid" in data["entity"]:
+                track_number = data["entity"].get("track_number", "будет позже")
+                return {"success": True, "track_number": track_number}
+            else:
+                return {"error": f"Ошибка создания заказа: {data.get('errors', '')}"}
+        else:
+            return {"error": f"Ошибка СДЭК: {response.status_code}"}
+    except Exception as e:
+        return {"error": str(e)}
+
 def ask_aitunnel(user_msg, history=None):
     if history is None:
         history = [{"role": "system", "content": SYSTEM_PROMPT}]
@@ -170,7 +230,7 @@ def main():
     vk_session = VkApi(token=VK_TOKEN)
     longpoll = VkLongPoll(vk_session, wait=90)
     vk = vk_session.get_api()
-    print("✅ Бот запущен (с доставкой 0 для Владимира)")
+    print("✅ Бот запущен (с созданием заказов в СДЭК)")
 
     dialogs = {}
     order_data = {}
@@ -222,12 +282,20 @@ def main():
                         else:
                             delivery_text = f"Доставка: {delivery['price']} ₽"
 
+                    # Пытаемся создать заказ в СДЭК
+                    order_result = create_cdek_order(city_found, product, phone, user_name, 1)
+                    if "error" in order_result:
+                        order_msg = f"⚠️ Не удалось создать заказ в СДЭК: {order_result['error']}"
+                        print(order_msg)
+                    else:
+                        order_msg = f"✅ Заказ создан! Номер отслеживания: {order_result['track_number']}"
+
                     answer = (
                         f"📦 {product['name']} — {product['price']} ₽\n"
                         f"🚚 {delivery_text}\n"
                         f"💰 Итого: {total} ₽\n\n"
-                        f"✅ Заявка оформлена! Менеджер свяжется с вами по указанному телефону.\n"
-                        f"Спасибо за покупку! 😊"
+                        f"{order_msg}\n"
+                        f"Менеджер свяжется с вами для уточнения деталей. Спасибо! 😊"
                     )
                     vk.messages.send(user_id=uid, message=answer, random_id=0)
                     dialogs[uid].append({"role": "assistant", "content": answer})
@@ -242,7 +310,8 @@ def main():
                                     f"Город: {city_found}\n"
                                     f"Телефон: {phone}\n"
                                     f"Доставка: {delivery.get('price', 'не рассчитана')} ₽\n"
-                                    f"Итого: {total} ₽"
+                                    f"Итого: {total} ₽\n"
+                                    f"{order_msg}"
                                 ),
                                 random_id=0
                             )
@@ -295,12 +364,19 @@ def main():
                     total = order_data[uid].get("total")
 
                     if city and product:
+                        order_result = create_cdek_order(city, product, phone, user_name, 1)
+                        if "error" in order_result:
+                            order_msg = f"⚠️ Не удалось создать заказ в СДЭК: {order_result['error']}"
+                            print(order_msg)
+                        else:
+                            order_msg = f"✅ Заказ создан! Номер отслеживания: {order_result['track_number']}"
+
                         answer = (
                             f"📦 {product['name']} — {product['price']} ₽\n"
                             f"🚚 Доставка: {delivery_price} ₽\n"
                             f"💰 Итого: {total} ₽\n\n"
-                            f"✅ Заявка оформлена! Менеджер свяжется с вами по указанному телефону.\n"
-                            f"Спасибо за покупку! 😊"
+                            f"{order_msg}\n"
+                            f"Менеджер свяжется с вами для уточнения деталей. Спасибо! 😊"
                         )
                         vk.messages.send(user_id=uid, message=answer, random_id=0)
                         dialogs[uid].append({"role": "assistant", "content": answer})
@@ -315,7 +391,8 @@ def main():
                                         f"Город: {city}\n"
                                         f"Телефон: {phone}\n"
                                         f"Доставка: {delivery_price} ₽\n"
-                                        f"Итого: {total} ₽"
+                                        f"Итого: {total} ₽\n"
+                                        f"{order_msg}"
                                     ),
                                     random_id=0
                                 )
