@@ -6,79 +6,50 @@ from vk_api import VkApi
 from vk_api.longpoll import VkLongPoll, VkEventType
 
 # ===== НАСТРОЙКИ =====
-VK_TOKEN = "vk1.a.vedeEaKBa4UKyV0RYddcBqMts_JJrvNynhr8OPClZfx2l6JQVzrFM2v9fXIm74J0RWykxVmwIMxbrwVuZxnoDYkUh4FE9EVxz4d3btZ51dyjV4nUzHJ9Gph5juclIZaWRfq03hBfqW6L3Our9W_1PwJsp5udn-_nOTM2XV79CO16MWqPwmfKEON4dp3oPnVdz9bBIhEzRIjmlAEFLfDeNQ"
+VK_TOKEN = "vk1.a.gB_E6NmXBEv0nRT58o_22HRpW5hhLvc7TC22VbE1M8KBZPgW7beJfO-DmSqnCNGIdVvQu17WHPKa5teVbQq3z93d-pneW6XkAmMdpNowUViS0P0enWa16qKXfA4HRRCvG74_OriEOAF6mtQeddpjDzDoooIAGWBxu84c-1Aj7wE9sGoOrOdVSS5NvnDSjfc0-QunLDoQdSsSgDFQxkIWgg"
+MANAGER_IDS = [29279564, 598512076]
 AITUNNEL_API_KEY = "sk-aitunnel-EJz97YJpiOwnaObmGNjf6mU8cT2OdP8L"
 
-# ===== МЕНЕДЖЕРЫ И ИХ ТОВАРЫ =====
-MANAGER_PRODUCTS = {
-    16432320: ["скобы садовые", "фиксаторы"],
-    2727304: ["модульное покрытие", "дорожка", "прокладки для собак", "эфирные масла"],
-}
-ALL_MANAGER_IDS = list(MANAGER_PRODUCTS.keys())  # [16432320, 2727304]
-
-# ===== НАСТРОЙКИ СДЭК =====
-CDEK_CLIENT_ID = "FDF0yHIab572TjWg6Kuo5uIzY5jcyKQ2"
-CDEK_CLIENT_SECRET = "B8UDRKFzfbMzMgZ9cwrOKsEwPodAloGN"
+# ===== НАСТРОЙКИ СДЭК (НОВЫЕ КЛЮЧИ) =====
+CDEK_CLIENT_ID = "xa9kg2n25HvBQeRSLAbZ51NoGEX4k7xX"
+CDEK_CLIENT_SECRET = "pfV81gBVIGK3WBSOzg6ybUQNGggp2Zp8"
 SENDER_CITY_CODE = 1177  # Владимир
-
-TARIFF_CODES = [136, 137, 138]
-
-DELIVERY_PRICES = {
-    "москва": 350,
-    "самара": 430,
-    "санкт-петербург": 450,
-    "питер": 450,
-    "владимир": 0,
-    "новосибирск": 500,
-    "екатеринбург": 480,
-}
+SENDER_ADDRESS = "ул. Юбилейная, 58"  # твой адрес отправления
 # ===============================================
 
 PRODUCTS = [
-    {"name": "Короба 600×400×400", "desc": "Крупная коробка для габаритных грузов. Трёхслойный гофрокартон T23, самосборная, упаковка 10 шт.", "price": 70.0, "weight": 500, "length": 60, "width": 40, "height": 40},
-    {"name": "Короба 600×400×200", "desc": "Удобная коробка 600×400×200 мм для плоских грузов.", "price": 68.0, "weight": 400, "length": 60, "width": 40, "height": 20},
-    {"name": "Короба 200×300×300", "desc": "Коробка 200×300×300 мм для небольших товаров.", "price": 60.0, "weight": 400, "length": 20, "width": 30, "height": 30},
-    {"name": "Короба 95×95×103", "desc": "Компактная коробка 95×95×103 мм для мелких предметов.", "price": 22.0, "weight": 200, "length": 9.5, "width": 9.5, "height": 10.3},
-    {"name": "Короба 50×50×225", "desc": "Узкая коробка 50×50×225 мм для длинных товаров.", "price": 16.0, "weight": 200, "length": 5, "width": 5, "height": 22.5},
-    {"name": "Короба 100×100×290", "desc": "Коробка 100×100×290 мм для средних по длине предметов.", "price": 12.09, "weight": 200, "length": 10, "width": 10, "height": 29},
-    {"name": "Короба 1040×165×45", "desc": "Длинная плоская коробка 1040×165×45 мм для крупных плоских грузов.", "price": 29.04, "weight": 600, "length": 104, "width": 16.5, "height": 4.5},
-    {"name": "Короба 110×110×335", "desc": "Коробка 110×110×335 мм для длинных тонких предметов.", "price": 20.3, "weight": 300, "length": 11, "width": 11, "height": 33.5},
-    {"name": "Короба 165×105×55", "desc": "Коробка 165×105×55 мм для компактных товаров.", "price": 11.08, "weight": 200, "length": 16.5, "width": 10.5, "height": 5.5},
-    {"name": "Короба 170×170×80", "desc": "Квадратная коробка 170×170×80 мм.", "price": 9.96, "weight": 200, "length": 17, "width": 17, "height": 8},
-    {"name": "Короба 220×130×130*", "desc": "Коробка 220×130×130 мм для небольших товаров среднего размера.", "price": 9.99, "weight": 200, "length": 22, "width": 13, "height": 13},
-    {"name": "Короба 220×130×180", "desc": "Коробка 220×130×180 мм для компактных грузов.", "price": 11.47, "weight": 200, "length": 22, "width": 13, "height": 18},
-    {"name": "Короба 240×135×50", "desc": "Плоская коробка 240×135×50 мм для небольших плоских предметов.", "price": 16.98, "weight": 300, "length": 24, "width": 13.5, "height": 5},
-    {"name": "Короба 280×150×350", "desc": "Коробка 280×150×350 мм для средних габаритных товаров.", "price": 23.41, "weight": 400, "length": 28, "width": 15, "height": 35},
-    {"name": "Короба 300×200×300", "desc": "Коробка 300×200×300 мм для универсальных грузов.", "price": 23.55, "weight": 400, "length": 30, "width": 20, "height": 30},
-    {"name": "Короба 380×240×290", "desc": "Коробка 380×240×290 мм для крупных товаров.", "price": 33.0, "weight": 500, "length": 38, "width": 24, "height": 29},
-    {"name": "Короба 590×195×120", "desc": "Длинная коробка 590×195×120 мм для крупных длинных предметов.", "price": 57.72, "weight": 500, "length": 59, "width": 19.5, "height": 12},
-    {"name": "Короба 785×235×215", "desc": "Крупная коробка 785×235×215 мм для больших грузов.", "price": 42.87, "weight": 600, "length": 78.5, "width": 23.5, "height": 21.5},
-    {"name": "Ведро пластиковое пищевое 20 л с крышкой", "desc": "🪣 Универсальное пищевое ведро 20 л — идеально для хранения продуктов, заготовок, воды. Толстый пластик (1 кг), герметичная крышка, удобная ручка. Б/у из-под сиропа, состояние идеальное.", "price": 300.0, "weight": 1100, "length": 35, "width": 35, "height": 40},
-    {"name": "Набор эфирных масел PARLAB, 5 шт", "desc": "🌿 Натуральный набор 100% эфирных масел (чайное дерево, апельсин, мята, лаванда, иланг-иланг). В подарочной упаковке, объём 50 мл.", "price": 696.0, "weight": 400, "length": 20, "width": 15, "height": 5},
-    {"name": "Прокладки для собак PitoMir, 30 шт", "desc": "🐾 Гипоаллергенные впитывающие прокладки для собак и кошек 30 шт. Дышащий материал, суперабсорбент, липкий слой.", "price": 432.0, "weight": 600, "length": 30, "width": 20, "height": 10},
-    {"name": "Садовая дорожка модульная GUSEV GARDEN, 27 шт", "desc": "🌱 Садовая модульная дорожка 27 модулей (2.43 м²). Прочный пластик, устойчивый к погоде и нагрузкам. Легко собирается без инструментов.", "price": 2676.0, "weight": 5700, "length": 32, "width": 31, "height": 26},
-    {"name": "Садовая дорожка модульная GUSEV GARDEN, 9 шт", "desc": "🌱 Садовая модульная дорожка 9 модулей (0.81 м²). Компактный вариант для небольших участков.", "price": 1177.0, "weight": 2000, "length": 32, "width": 32, "height": 9},
-    {"name": "Скобы садовые с фиксаторами GUSEV GARDEN, 100 шт", "desc": "🧷 Надёжные садовые скобы из оцинкованной стали с пластиковыми фиксаторами, 100 шт. Заострённые концы легко входят в грунт.", "price": 670.0, "weight": 1820, "length": 23, "width": 18, "height": 10},
-    {"name": "Заборчик садовый раздвижной декоративный GUSEV GARDEN", "desc": "🌳 Декоративный раздвижной заборчик из WPC (древесно-пластиковый композит). Высота 40 см, длина 90 см (раздвижной).", "price": 923.0, "weight": 400, "length": 45, "width": 23, "height": 3},
-    {"name": "Печь походная отопительная для палатки и бани", "desc": "🔥 Дровяная печь из стали Aisi 439, компактная, с дымоходом, каменкой, быстросъёмными ножками. Идеальна для палаток, бань, зимней рыбалки.", "price": 18000.0, "weight": 23000, "length": 67, "width": 30, "height": 45}
+    {"name": "Короба 600×400×400", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 70.0, "weight": 500, "length": 60, "width": 40, "height": 40},
+    {"name": "Короба 600×400×200", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 68.0, "weight": 400, "length": 60, "width": 40, "height": 20},
+    {"name": "Короба 200×300×300", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 60.0, "weight": 400, "length": 20, "width": 30, "height": 30},
+    {"name": "Короба 95×95×103", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 22.0, "weight": 200, "length": 9.5, "width": 9.5, "height": 10.3},
+    {"name": "Короба 50×50×225", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 16.0, "weight": 200, "length": 5, "width": 5, "height": 22.5},
+    {"name": "Короба 100×100×290", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 12.09, "weight": 200, "length": 10, "width": 10, "height": 29},
+    {"name": "Короба 1040×165×45", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 29.04, "weight": 600, "length": 104, "width": 16.5, "height": 4.5},
+    {"name": "Короба 110×110×335", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 20.3, "weight": 300, "length": 11, "width": 11, "height": 33.5},
+    {"name": "Короба 165×105×55", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 11.08, "weight": 200, "length": 16.5, "width": 10.5, "height": 5.5},
+    {"name": "Короба 170×170×80", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 9.96, "weight": 200, "length": 17, "width": 17, "height": 8},
+    {"name": "Короба 220×130×130*", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 9.99, "weight": 200, "length": 22, "width": 13, "height": 13},
+    {"name": "Короба 220×130×180", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 11.47, "weight": 200, "length": 22, "width": 13, "height": 18},
+    {"name": "Короба 240×135×50", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 16.98, "weight": 300, "length": 24, "width": 13.5, "height": 5},
+    {"name": "Короба 280×150×350", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 23.41, "weight": 400, "length": 28, "width": 15, "height": 35},
+    {"name": "Короба 300×200×300", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 23.55, "weight": 400, "length": 30, "width": 20, "height": 30},
+    {"name": "Короба 380×240×290", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 33.0, "weight": 500, "length": 38, "width": 24, "height": 29},
+    {"name": "Короба 590×195×120", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 57.72, "weight": 500, "length": 59, "width": 19.5, "height": 12},
+    {"name": "Короба 785×235×215", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 42.87, "weight": 600, "length": 78.5, "width": 23.5, "height": 21.5},
+    {"name": "Ведро пластиковое пищевое 20 л с крышкой", "desc": "Б/У, из-под сиропа, идеальное состояние, без сколов, трещин и запаха. Толстый пластик (1 кг), герметичная крышка, пищевой пластик.", "price": 300.0, "weight": 1100, "length": 35, "width": 35, "height": 40},
 ]
 
 SYSTEM_PROMPT = (
     "Ты — продавец-консультант интернет-магазина EVA.store.\n"
     "Ты помогаешь клиентам с выбором и оформлением заказов.\n\n"
     "У нас есть следующие товары (всегда используй эти названия и цены):\n"
-    + "\n".join([f"- {p['name']}: {p['price']} ₽, {p['desc']}" for p in PRODUCTS]) +
+    + "\n".join([f"- {p['name']}: {p['price']} ₽, вес ~{p['weight']}г" for p in PRODUCTS]) +
     "\n\nАЛГОРИТМ РАБОТЫ:\n"
-    "- Если клиент выражает желание купить или спрашивает цену/доставку, определи город и товар.\n"
-    "- Для расчёта доставки вызови функцию calculate_delivery.\n"
-    "- В ответе ты получишь только один вариант доставки — самый дешёвый из доступных тарифов СДЭК.\n"
-    "- Ты должен показать клиенту: товар, доставку и итоговую сумму.\n"
-    "- НЕ ПРЕДЛАГАЙ ПОЧТУ РОССИИ И НЕ ПРИДУМЫВАЙ ДРУГИЕ ВАРИАНТЫ — только то, что вернёт функция.\n"
-    "- После этого спроси номер телефона для оформления заказа.\n"
+    "- Если клиент хочет купить — узнай его город, количество и товар.\n"
+    "- Затем рассчитай стоимость товара и доставки.\n"
+    "- Спроси номер телефона для оформления заказа.\n"
     "- Когда клиент дал телефон — сообщи, что заявка передана менеджеру.\n"
-    "- Отвечай кратко, дружелюбно, используй техники продаж.\n"
-    "- Если клиент спрашивает о товаре — дай информацию из списка выше.\n"
-    "- Если клиент спрашивает про доставку, но не назвал город — сначала попроси назвать город."
+    "- Отвечай кратко, дружелюбно."
 )
 
 CITY_CODES = {
@@ -89,16 +60,6 @@ CITY_CODES = {
     "новосибирск": 137,
     "екатеринбург": 270,
 }
-
-def get_responsible_managers(product_name: str):
-    """Возвращает список ID менеджеров, ответственных за данный товар"""
-    managers = []
-    for manager_id, products in MANAGER_PRODUCTS.items():
-        for p in products:
-            if p.lower() in product_name.lower():
-                managers.append(manager_id)
-                break
-    return managers
 
 def get_cdek_token():
     try:
@@ -113,7 +74,7 @@ def get_cdek_token():
         )
         if response.status_code == 200:
             return response.json()["access_token"]
-        print(f"⚠️ Ошибка токена СДЭК: {response.status_code} {response.text[:200]}")
+        print(f"⚠️ Ошибка токена СДЭК: {response.status_code}")
         return None
     except Exception as e:
         print(f"⚠️ Ошибка токена СДЭК: {e}")
@@ -138,105 +99,125 @@ def get_city_code(city_name: str) -> int:
             cities = response.json()
             if cities and len(cities) > 0:
                 return cities[0]["code"]
-        print(f"⚠️ Ошибка поиска города: {response.status_code} {response.text[:200]}")
     except Exception as e:
         print(f"⚠️ Ошибка поиска города: {e}")
     return None
 
-def get_delivery_price_fallback(city_name: str) -> int:
-    city_lower = city_name.lower().strip()
-    for key, price in DELIVERY_PRICES.items():
-        if key in city_lower:
-            return price
-    return None
-
-def calculate_delivery(city_name: str, product_name: str) -> dict:
-    product = None
-    for p in PRODUCTS:
-        if p["name"].lower() == product_name.lower() or product_name.lower() in p["name"].lower():
-            product = p
-            break
-    if not product:
-        return {"error": f"Товар '{product_name}' не найден"}
-
+def calculate_delivery(city_name: str, product: dict) -> dict:
     city_code = get_city_code(city_name)
-    token = get_cdek_token()
+    if not city_code:
+        return {"error": "Не удалось определить город"}
 
+    token = get_cdek_token()
+    if not token:
+        return {"error": "Не удалось получить токен СДЭК"}
+
+    package = {"weight": product.get("weight", 500)}
+    if "length" in product and "width" in product and "height" in product:
+        package["length"] = product["length"]
+        package["width"] = product["width"]
+        package["height"] = product["height"]
+
+    tariffs = [136, 137, 138]
     best_price = None
     best_days = None
-    best_tariff_name = None
 
-    if city_code and token:
-        package = {
-            "weight": product.get("weight", 500),
-        }
-        if "length" in product and "width" in product and "height" in product:
-            package["length"] = product["length"]
-            package["width"] = product["width"]
-            package["height"] = product["height"]
-
-        for tariff_code in TARIFF_CODES:
-            try:
-                response = requests.post(
-                    "https://api.cdek.ru/v2/calculator/tariff",
-                    headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-                    json={
-                        "from_location": {"code": SENDER_CITY_CODE},
-                        "to_location": {"code": city_code},
-                        "packages": [package],
-                        "tariff_codes": [tariff_code]
-                    },
-                    timeout=30
-                )
-                if response.status_code == 200:
-                    data = response.json()
-                    if "tariff_codes" in data and len(data["tariff_codes"]) > 0:
-                        tariff_info = data["tariff_codes"][0]
-                        price = tariff_info.get("total_sum", 0)
-                        if price > 0:
-                            name_map = {136: "склад-склад", 137: "склад-дверь", 138: "эконом"}
-                            tariff_name = name_map.get(tariff_code, f"тариф {tariff_code}")
-                            if best_price is None or price < best_price:
-                                best_price = price
-                                best_days = {
-                                    "min": tariff_info.get("period_min", 2),
-                                    "max": tariff_info.get("period_max", 4)
-                                }
-                                best_tariff_name = tariff_name
-            except Exception as e:
-                print(f"⚠️ Ошибка при тарифе {tariff_code}: {e}")
-                continue
+    for tariff in tariffs:
+        try:
+            response = requests.post(
+                "https://api.cdek.ru/v2/calculator/tariff",
+                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+                json={
+                    "from_location": {"code": SENDER_CITY_CODE},
+                    "to_location": {"code": city_code},
+                    "packages": [package],
+                    "tariff_codes": [tariff]
+                },
+                timeout=60
+            )
+            if response.status_code == 200:
+                data = response.json()
+                if "tariff_codes" in data and len(data["tariff_codes"]) > 0:
+                    tariff_info = data["tariff_codes"][0]
+                    price = tariff_info.get("total_sum", 0)
+                    if price > 0 and (best_price is None or price < best_price):
+                        best_price = price
+                        best_days = {
+                            "min": tariff_info.get("period_min", 2),
+                            "max": tariff_info.get("period_max", 4)
+                        }
+        except Exception as e:
+            print(f"⚠️ Ошибка при тарифе {tariff}: {e}")
+            continue
 
     if best_price is not None:
-        return {
-            "price": best_price,
-            "days_min": best_days["min"],
-            "days_max": best_days["max"],
-            "product_name": product["name"],
-            "product_price": product["price"],
-            "tariff_name": best_tariff_name,
-            "source": "api"
-        }
-
-    fallback_price = get_delivery_price_fallback(city_name)
-    if fallback_price is not None:
-        return {
-            "price": fallback_price,
-            "days_min": 2,
-            "days_max": 4,
-            "product_name": product["name"],
-            "product_price": product["price"],
-            "tariff_name": "по договору",
-            "source": "fallback"
-        }
+        return {"price": best_price, "days_min": best_days["min"], "days_max": best_days["max"]}
     else:
-        return {"error": "Доставка будет рассчитана менеджером"}
+        return {"error": "Не удалось рассчитать доставку"}
 
-def ask_aitunnel_with_tools(user_msg, history=None, tools=None):
+def create_cdek_order(city_name: str, product: dict, phone: str, client_name: str, quantity: int = 1) -> dict:
+    """Создаёт заказ в СДЭК через API"""
+    city_code = get_city_code(city_name)
+    if not city_code:
+        return {"error": "Не удалось определить город"}
+
+    token = get_cdek_token()
+    if not token:
+        return {"error": "Не удалось получить токен СДЭК"}
+
+    # Рассчитываем вес и габариты
+    total_weight = product["weight"] * quantity
+    package = {"weight": total_weight}
+    if "length" in product and "width" in product and "height" in product:
+        package["length"] = product["length"]
+        package["width"] = product["width"]
+        package["height"] = product["height"]
+
+    # Формируем запрос на создание заказа
+    order_data = {
+        "type": 1,  # 1 — заказ в одну сторону (доставка)
+        "number": f"EVA-{int(time.time())}",
+        "tariff_code": 136,  # склад-склад (можно поменять на 137 или 138)
+        "comment": f"Заказ от {client_name}, товар: {product['name']}",
+        "sender": {
+            "name": "EVA.store",
+            "phone": "+79056161515",
+            "address": SENDER_ADDRESS
+        },
+        "recipient": {
+            "name": client_name,
+            "phone": phone,
+            "address": {
+                "city_code": city_code,
+                "street": "ул. Центральная",  # можно уточнить у клиента
+                "house": "1"
+            }
+        },
+        "packages": [package]
+    }
+
+    try:
+        response = requests.post(
+            "https://api.cdek.ru/v2/orders",
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            json=order_data,
+            timeout=60
+        )
+        if response.status_code == 200:
+            data = response.json()
+            if "entity" in data and "uuid" in data["entity"]:
+                return {"success": True, "order_uuid": data["entity"]["uuid"], "track_number": data["entity"].get("track_number", "")}
+            else:
+                return {"error": f"Ошибка создания заказа: {data.get('errors', '')}"}
+        else:
+            return {"error": f"Ошибка СДЭК: {response.status_code} {response.text[:200]}"}
+    except Exception as e:
+        return {"error": str(e)}
+
+def ask_aitunnel(user_msg, history=None):
     if history is None:
         history = [{"role": "system", "content": SYSTEM_PROMPT}]
     history.append({"role": "user", "content": user_msg})
-
     url = "https://api.aitunnel.ru/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {AITUNNEL_API_KEY}",
@@ -246,52 +227,25 @@ def ask_aitunnel_with_tools(user_msg, history=None, tools=None):
         "model": "deepseek-chat",
         "messages": history,
         "temperature": 0.7,
-        "max_tokens": 600,
-        "tools": tools,
-        "tool_choice": "auto"
+        "max_tokens": 600
     }
-
     try:
         response = requests.post(url, headers=headers, json=data, timeout=60)
         if response.status_code == 200:
-            return response.json()
+            answer = response.json()["choices"][0]["message"]["content"]
+            history.append({"role": "assistant", "content": answer})
+            return answer, history
         else:
-            print(f"⚠️ Ошибка AITunnel: {response.status_code} {response.text[:200]}")
-            return None
+            return "❌ Ошибка AITunnel. Попробуйте позже.", history
     except Exception as e:
-        print(f"⚠️ Ошибка запроса к AITunnel: {e}")
-        return None
+        return f"❌ Ошибка: {str(e)[:100]}", history
 
 def main():
     print("🔄 Подключаюсь к VK...")
     vk_session = VkApi(token=VK_TOKEN)
     longpoll = VkLongPoll(vk_session, wait=90)
     vk = vk_session.get_api()
-    print("✅ Бот запущен (с распределением заявок по менеджерам)")
-
-    tools = [
-        {
-            "type": "function",
-            "function": {
-                "name": "calculate_delivery",
-                "description": "Рассчитывает стоимость доставки для указанного города и товара. Возвращает самый дешёвый вариант.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "city_name": {
-                            "type": "string",
-                            "description": "Название города клиента, например 'Москва'"
-                        },
-                        "product_name": {
-                            "type": "string",
-                            "description": "Точное название товара из списка"
-                        }
-                    },
-                    "required": ["city_name", "product_name"]
-                }
-            }
-        }
-    ]
+    print("✅ Бот запущен (с интеграцией СДЭК)")
 
     dialogs = {}
     order_data = {}
@@ -312,113 +266,171 @@ def main():
             if uid not in dialogs:
                 dialogs[uid] = [{"role": "system", "content": SYSTEM_PROMPT}]
 
-            response = ask_aitunnel_with_tools(text, dialogs[uid], tools)
-            if response is None:
-                vk.messages.send(user_id=uid, message="❌ Ошибка сервиса ИИ. Попробуйте позже.", random_id=0)
-                continue
+            # Проверяем, хочет ли клиент купить
+            buy_keywords = ["купить", "заказать", "беру", "покупаю", "хочу"]
+            if any(w in text.lower() for w in buy_keywords):
+                # Определяем товар
+                product = None
+                for p in PRODUCTS:
+                    if p["name"].lower() in text.lower():
+                        product = p
+                        break
+                if not product:
+                    product = PRODUCTS[-1]  # по умолчанию вёдра
 
-            msg = response["choices"][0]["message"]
+                # Ищем город и телефон в тексте
+                city_found = None
+                for city in CITY_CODES.keys():
+                    if city in text.lower():
+                        city_found = city
+                        break
 
-            if "tool_calls" in msg and msg["tool_calls"]:
-                tool_call = msg["tool_calls"][0]
-                function_name = tool_call["function"]["name"]
-                arguments = json.loads(tool_call["function"]["arguments"])
-
-                if function_name == "calculate_delivery":
-                    city_name = arguments.get("city_name")
-                    product_name = arguments.get("product_name")
-                    if not city_name or not product_name:
-                        vk.messages.send(user_id=uid, message="❌ Не удалось определить город или товар. Уточните, пожалуйста.", random_id=0)
-                        continue
-
-                    result = calculate_delivery(city_name, product_name)
-                    if "error" in result:
-                        delivery_result = f"❌ {result['error']}"
-                    else:
-                        total = result["product_price"] + result["price"]
-                        tariff_text = f" ({result['tariff_name']})" if result.get("tariff_name") else ""
-                        delivery_result = (
-                            f"📦 {result['product_name']} — {result['product_price']} ₽\n"
-                            f"🚚 Доставка СДЭК{tariff_text}: {result['price']} ₽ (срок {result['days_min']}-{result['days_max']} дн.)\n"
-                            f"💰 Итого: {total} ₽"
-                        )
-                        if uid not in order_data:
-                            order_data[uid] = {}
-                        order_data[uid]["city"] = city_name
-                        order_data[uid]["product"] = product_name
-                        order_data[uid]["product_price"] = result["product_price"]
-                        order_data[uid]["delivery_price"] = result["price"]
-                        order_data[uid]["total"] = total
-                        order_data[uid]["tariff_name"] = result.get("tariff_name", "")
-
-                    function_response = {
-                        "role": "tool",
-                        "tool_call_id": tool_call["id"],
-                        "content": delivery_result
-                    }
-                    dialogs[uid].append(msg)
-                    dialogs[uid].append(function_response)
-
-                    second_response = ask_aitunnel_with_tools("", dialogs[uid], tools)
-                    if second_response:
-                        final_msg = second_response["choices"][0]["message"]
-                        answer = final_msg.get("content", "✅ Доставка рассчитана. Укажите номер телефона для заказа.")
-                        vk.messages.send(user_id=uid, message=answer, random_id=0)
-                        if "content" in final_msg:
-                            dialogs[uid].append({"role": "assistant", "content": final_msg["content"]})
-                    else:
-                        vk.messages.send(user_id=uid, message="❌ Ошибка обработки. Попробуйте позже.", random_id=0)
-                else:
-                    vk.messages.send(user_id=uid, message="❌ Неизвестная функция.", random_id=0)
-                continue
-
-            if "content" in msg:
-                answer = msg["content"]
-                vk.messages.send(user_id=uid, message=answer, random_id=0)
-                dialogs[uid].append({"role": "assistant", "content": answer})
-                if "телефон" in answer.lower() or "номер" in answer.lower():
-                    if uid not in order_data:
-                        order_data[uid] = {}
-                    order_data[uid]["awaiting_phone"] = True
-
-            if uid in order_data and order_data[uid].get("awaiting_phone"):
                 phone_match = re.search(r'\+?\d[\d\s\-\(\)]{7,}\d', text)
-                if phone_match:
+
+                if city_found and phone_match:
                     phone = phone_match.group().strip()
-                    city = order_data[uid].get("city", "не указан")
-                    product = order_data[uid].get("product", "не указан")
-                    total = order_data[uid].get("total", "не рассчитана")
-                    delivery_price = order_data[uid].get("delivery_price", "не рассчитана")
-                    tariff_name = order_data[uid].get("tariff_name", "не выбран")
-                    delivery_info = f"Тариф: {tariff_name}, стоимость: {delivery_price} ₽, итого: {total} ₽"
-
-                    # Определяем, кто ответственен за этот товар
-                    responsible = get_responsible_managers(product)
-                    if responsible:
-                        target_managers = responsible
+                    # Рассчитываем доставку
+                    delivery = calculate_delivery(city_found, product)
+                    if "error" in delivery:
+                        delivery_text = f"❌ {delivery['error']}"
+                        total = None
                     else:
-                        target_managers = ALL_MANAGER_IDS  # если нет, отправляем всем
+                        total = product["price"] + delivery["price"]
+                        delivery_text = f"Доставка: {delivery['price']} ₽ (срок {delivery['days_min']}-{delivery['days_max']} дн.)"
 
-                    for manager_id in target_managers:
+                    # Сохраняем данные заказа
+                    order_data[uid] = {
+                        "city": city_found,
+                        "product": product,
+                        "phone": phone,
+                        "delivery_price": delivery.get("price"),
+                        "total": total,
+                        "user_name": user_name
+                    }
+
+                    # Пытаемся создать заказ в СДЭК
+                    order_result = create_cdek_order(city_found, product, phone, user_name, 1)
+                    if "error" in order_result:
+                        order_msg = f"⚠️ Не удалось создать заказ в СДЭК: {order_result['error']}"
+                        print(order_msg)
+                    else:
+                        order_msg = f"✅ Заказ создан! Номер отслеживания: {order_result.get('track_number', 'будет позже')}"
+
+                    # Отправляем ответ с доставкой и информацией о заказе
+                    answer = (
+                        f"📦 {product['name']} — {product['price']} ₽\n"
+                        f"🚚 {delivery_text}\n"
+                        f"💰 Итого: {total} ₽\n\n"
+                        f"{order_msg}\n"
+                        f"Менеджер свяжется с вами для уточнения деталей. Спасибо! 😊"
+                    )
+                    vk.messages.send(user_id=uid, message=answer, random_id=0)
+                    dialogs[uid].append({"role": "assistant", "content": answer})
+
+                    # Уведомление менеджерам
+                    for manager_id in MANAGER_IDS:
                         try:
                             vk.messages.send(
                                 user_id=manager_id,
                                 message=(
                                     f"🛒 ЗАЯВКА от {user_name}!\n"
-                                    f"Товар: {product}\n"
-                                    f"Город: {city}\n"
+                                    f"Товар: {product['name']}\n"
+                                    f"Город: {city_found}\n"
                                     f"Телефон: {phone}\n"
-                                    f"{delivery_info}"
+                                    f"Доставка: {delivery.get('price', 'не рассчитана')} ₽\n"
+                                    f"Итого: {total} ₽\n"
+                                    f"{order_msg}"
                                 ),
                                 random_id=0
                             )
                         except:
                             pass
-                    answer = "✅ Заявка оформлена! Менеджер свяжется с вами по указанному телефону. Спасибо! 😊"
+                    continue
+
+                elif city_found and not phone_match:
+                    # Есть город, но нет телефона
+                    delivery = calculate_delivery(city_found, product)
+                    if "error" in delivery:
+                        delivery_text = f"❌ {delivery['error']}"
+                        total = None
+                    else:
+                        total = product["price"] + delivery["price"]
+                        delivery_text = f"Доставка: {delivery['price']} ₽ (срок {delivery['days_min']}-{delivery['days_max']} дн.)"
+
+                    answer = (
+                        f"📦 {product['name']} — {product['price']} ₽\n"
+                        f"🚚 {delivery_text}\n"
+                        f"💰 Итого: {total} ₽\n\n"
+                        f"Для оформления заказа нужен ваш номер телефона."
+                    )
                     vk.messages.send(user_id=uid, message=answer, random_id=0)
                     dialogs[uid].append({"role": "assistant", "content": answer})
-                    if uid in order_data:
+                    # Сохраняем данные для продолжения
+                    if uid not in order_data:
+                        order_data[uid] = {}
+                    order_data[uid]["city"] = city_found
+                    order_data[uid]["product"] = product
+                    order_data[uid]["delivery_price"] = delivery.get("price")
+                    order_data[uid]["total"] = total
+                    continue
+
+                elif not city_found:
+                    answer = "Для расчёта доставки скажите, из какого вы города?"
+                    vk.messages.send(user_id=uid, message=answer, random_id=0)
+                    dialogs[uid].append({"role": "assistant", "content": answer})
+                    continue
+
+            # Если у нас есть данные заказа и клиент отправил телефон (но мы его не перехватили)
+            if uid in order_data and not order_data[uid].get("phone"):
+                phone_match = re.search(r'\+?\d[\d\s\-\(\)]{7,}\d', text)
+                if phone_match:
+                    phone = phone_match.group().strip()
+                    order_data[uid]["phone"] = phone
+                    city = order_data[uid].get("city")
+                    product = order_data[uid].get("product")
+                    delivery_price = order_data[uid].get("delivery_price")
+                    total = order_data[uid].get("total")
+
+                    if city and product:
+                        # Создаём заказ в СДЭК
+                        order_result = create_cdek_order(city, product, phone, user_name, 1)
+                        if "error" in order_result:
+                            order_msg = f"⚠️ Не удалось создать заказ в СДЭК: {order_result['error']}"
+                            print(order_msg)
+                        else:
+                            order_msg = f"✅ Заказ создан! Номер отслеживания: {order_result.get('track_number', 'будет позже')}"
+
+                        answer = f"✅ Заявка оформлена! {order_msg}\nМенеджер свяжется с вами по указанному телефону. Спасибо! 😊"
+                        vk.messages.send(user_id=uid, message=answer, random_id=0)
+                        dialogs[uid].append({"role": "assistant", "content": answer})
+
+                        for manager_id in MANAGER_IDS:
+                            try:
+                                vk.messages.send(
+                                    user_id=manager_id,
+                                    message=(
+                                        f"🛒 ЗАЯВКА от {user_name}!\n"
+                                        f"Товар: {product['name']}\n"
+                                        f"Город: {city}\n"
+                                        f"Телефон: {phone}\n"
+                                        f"Доставка: {delivery_price} ₽\n"
+                                        f"Итого: {total} ₽\n"
+                                        f"{order_msg}"
+                                    ),
+                                    random_id=0
+                                )
+                            except:
+                                pass
                         del order_data[uid]
+                        continue
+
+            # Обычный диалог (без покупки)
+            if uid not in dialogs:
+                dialogs[uid] = [{"role": "system", "content": SYSTEM_PROMPT}]
+
+            answer, new_history = ask_aitunnel(text, dialogs[uid])
+            dialogs[uid] = new_history
+            vk.messages.send(user_id=uid, message=answer, random_id=0)
 
 if __name__ == "__main__":
     main()
