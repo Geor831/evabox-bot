@@ -229,171 +229,177 @@ def ask_aitunnel(user_msg, history=None):
 
 def main():
     print("🔄 Подключаюсь к VK...")
-    vk_session = VkApi(token=VK_TOKEN)
-    longpoll = VkLongPoll(vk_session, wait=120)
-    vk = vk_session.get_api()
-    print("✅ Бот запущен (все товары + СДЭК + таймаут 120)")
+    while True:
+        try:
+            vk_session = VkApi(token=VK_TOKEN)
+            longpoll = VkLongPoll(vk_session, wait=200)
+            vk = vk_session.get_api()
+            print("✅ Бот запущен (таймаут 200 секунд)")
 
-    dialogs = {}
-    order_data = {}
+            dialogs = {}
+            order_data = {}
 
-    for event in longpoll.listen():
-        if event.type == VkEventType.MESSAGE_NEW and event.to_me:
-            uid = event.user_id
-            text = event.text.strip()
-            if not text:
-                continue
-
-            try:
-                user_info = vk.users.get(user_id=uid)
-                user_name = user_info[0]['first_name']
-            except:
-                user_name = "Клиент"
-
-            if uid not in dialogs:
-                dialogs[uid] = [{"role": "system", "content": SYSTEM_PROMPT}]
-
-            buy_keywords = ["купить", "заказать", "беру", "покупаю", "хочу"]
-            if any(w in text.lower() for w in buy_keywords):
-                product = None
-                for p in PRODUCTS:
-                    if p["name"].lower() in text.lower():
-                        product = p
-                        break
-                if not product:
-                    product = PRODUCTS[-1]
-
-                city_found = None
-                for city in CITY_CODES.keys():
-                    if city in text.lower():
-                        city_found = city
-                        break
-
-                phone_match = re.search(r'\+?\d[\d\s\-\(\)]{7,}\d', text)
-
-                if city_found and phone_match:
-                    phone = phone_match.group().strip()
-                    delivery = calculate_delivery(city_found, product)
-                    if "error" in delivery:
-                        delivery_text = f"❌ {delivery['error']}"
-                        total = None
-                    else:
-                        total = product["price"] + delivery["price"]
-                        delivery_text = "Самовывоз (0 ₽)" if delivery["price"] == 0 else f"Доставка: {delivery['price']} ₽"
-
-                    order_result = create_cdek_order(city_found, product, phone, user_name, 1)
-                    order_msg = f"✅ Заказ создан! Номер отслеживания: {order_result['track_number']}" if "error" not in order_result else f"⚠️ Не удалось создать заказ в СДЭК: {order_result['error']}"
-
-                    answer = (
-                        f"📦 {product['name']} — {product['price']} ₽\n"
-                        f"🚚 {delivery_text}\n"
-                        f"💰 Итого: {total} ₽\n\n"
-                        f"{order_msg}\n"
-                        f"Менеджер свяжется с вами. Спасибо! 😊"
-                    )
-                    vk.messages.send(user_id=uid, message=answer, random_id=0)
-                    dialogs[uid].append({"role": "assistant", "content": answer})
-
-                    for manager_id in MANAGER_IDS:
-                        try:
-                            vk.messages.send(
-                                user_id=manager_id,
-                                message=(
-                                    f"🛒 ЗАЯВКА от {user_name}!\n"
-                                    f"Товар: {product['name']}\n"
-                                    f"Город: {city_found}\n"
-                                    f"Телефон: {phone}\n"
-                                    f"Доставка: {delivery.get('price', 'не рассчитана')} ₽\n"
-                                    f"Итого: {total} ₽\n"
-                                    f"{order_msg}"
-                                ),
-                                random_id=0
-                            )
-                        except:
-                            pass
-                    continue
-
-                elif city_found and not phone_match:
-                    delivery = calculate_delivery(city_found, product)
-                    if "error" in delivery:
-                        delivery_text = f"❌ {delivery['error']}"
-                        total = None
-                    else:
-                        total = product["price"] + delivery["price"]
-                        delivery_text = "Самовывоз (0 ₽)" if delivery["price"] == 0 else f"Доставка: {delivery['price']} ₽"
-
-                    answer = (
-                        f"📦 {product['name']} — {product['price']} ₽\n"
-                        f"🚚 {delivery_text}\n"
-                        f"💰 Итого: {total} ₽\n\n"
-                        f"Для оформления заказа нужен ваш номер телефона."
-                    )
-                    vk.messages.send(user_id=uid, message=answer, random_id=0)
-                    dialogs[uid].append({"role": "assistant", "content": answer})
-                    if uid not in order_data:
-                        order_data[uid] = {}
-                    order_data[uid]["city"] = city_found
-                    order_data[uid]["product"] = product
-                    order_data[uid]["delivery_price"] = delivery.get("price")
-                    order_data[uid]["total"] = total
-                    continue
-
-                elif not city_found:
-                    answer = "Для расчёта доставки скажите, из какого вы города?"
-                    vk.messages.send(user_id=uid, message=answer, random_id=0)
-                    dialogs[uid].append({"role": "assistant", "content": answer})
-                    continue
-
-            if uid in order_data and not order_data[uid].get("phone"):
-                phone_match = re.search(r'\+?\d[\d\s\-\(\)]{7,}\d', text)
-                if phone_match:
-                    phone = phone_match.group().strip()
-                    order_data[uid]["phone"] = phone
-                    city = order_data[uid].get("city")
-                    product = order_data[uid].get("product")
-                    delivery_price = order_data[uid].get("delivery_price")
-                    total = order_data[uid].get("total")
-
-                    if city and product:
-                        order_result = create_cdek_order(city, product, phone, user_name, 1)
-                        order_msg = f"✅ Заказ создан! Номер отслеживания: {order_result['track_number']}" if "error" not in order_result else f"⚠️ Не удалось создать заказ в СДЭК: {order_result['error']}"
-
-                        answer = (
-                            f"📦 {product['name']} — {product['price']} ₽\n"
-                            f"🚚 Доставка: {delivery_price} ₽\n"
-                            f"💰 Итого: {total} ₽\n\n"
-                            f"{order_msg}\n"
-                            f"Менеджер свяжется с вами. Спасибо! 😊"
-                        )
-                        vk.messages.send(user_id=uid, message=answer, random_id=0)
-                        dialogs[uid].append({"role": "assistant", "content": answer})
-
-                        for manager_id in MANAGER_IDS:
-                            try:
-                                vk.messages.send(
-                                    user_id=manager_id,
-                                    message=(
-                                        f"🛒 ЗАЯВКА от {user_name}!\n"
-                                        f"Товар: {product['name']}\n"
-                                        f"Город: {city}\n"
-                                        f"Телефон: {phone}\n"
-                                        f"Доставка: {delivery_price} ₽\n"
-                                        f"Итого: {total} ₽\n"
-                                        f"{order_msg}"
-                                    ),
-                                    random_id=0
-                                )
-                            except:
-                                pass
-                        del order_data[uid]
+            for event in longpoll.listen():
+                if event.type == VkEventType.MESSAGE_NEW and event.to_me:
+                    uid = event.user_id
+                    text = event.text.strip()
+                    if not text:
                         continue
 
-            if uid not in dialogs:
-                dialogs[uid] = [{"role": "system", "content": SYSTEM_PROMPT}]
+                    try:
+                        user_info = vk.users.get(user_id=uid)
+                        user_name = user_info[0]['first_name']
+                    except:
+                        user_name = "Клиент"
 
-            answer, new_history = ask_aitunnel(text, dialogs[uid])
-            dialogs[uid] = new_history
-            vk.messages.send(user_id=uid, message=answer, random_id=0)
+                    if uid not in dialogs:
+                        dialogs[uid] = [{"role": "system", "content": SYSTEM_PROMPT}]
+
+                    buy_keywords = ["купить", "заказать", "беру", "покупаю", "хочу"]
+                    if any(w in text.lower() for w in buy_keywords):
+                        product = None
+                        for p in PRODUCTS:
+                            if p["name"].lower() in text.lower():
+                                product = p
+                                break
+                        if not product:
+                            product = PRODUCTS[-1]
+
+                        city_found = None
+                        for city in CITY_CODES.keys():
+                            if city in text.lower():
+                                city_found = city
+                                break
+
+                        phone_match = re.search(r'\+?\d[\d\s\-\(\)]{7,}\d', text)
+
+                        if city_found and phone_match:
+                            phone = phone_match.group().strip()
+                            delivery = calculate_delivery(city_found, product)
+                            if "error" in delivery:
+                                delivery_text = f"❌ {delivery['error']}"
+                                total = None
+                            else:
+                                total = product["price"] + delivery["price"]
+                                delivery_text = "Самовывоз (0 ₽)" if delivery["price"] == 0 else f"Доставка: {delivery['price']} ₽"
+
+                            order_result = create_cdek_order(city_found, product, phone, user_name, 1)
+                            order_msg = f"✅ Заказ создан! Номер отслеживания: {order_result['track_number']}" if "error" not in order_result else f"⚠️ Не удалось создать заказ в СДЭК: {order_result['error']}"
+
+                            answer = (
+                                f"📦 {product['name']} — {product['price']} ₽\n"
+                                f"🚚 {delivery_text}\n"
+                                f"💰 Итого: {total} ₽\n\n"
+                                f"{order_msg}\n"
+                                f"Менеджер свяжется с вами. Спасибо! 😊"
+                            )
+                            vk.messages.send(user_id=uid, message=answer, random_id=0)
+                            dialogs[uid].append({"role": "assistant", "content": answer})
+
+                            for manager_id in MANAGER_IDS:
+                                try:
+                                    vk.messages.send(
+                                        user_id=manager_id,
+                                        message=(
+                                            f"🛒 ЗАЯВКА от {user_name}!\n"
+                                            f"Товар: {product['name']}\n"
+                                            f"Город: {city_found}\n"
+                                            f"Телефон: {phone}\n"
+                                            f"Доставка: {delivery.get('price', 'не рассчитана')} ₽\n"
+                                            f"Итого: {total} ₽\n"
+                                            f"{order_msg}"
+                                        ),
+                                        random_id=0
+                                    )
+                                except:
+                                    pass
+                            continue
+
+                        elif city_found and not phone_match:
+                            delivery = calculate_delivery(city_found, product)
+                            if "error" in delivery:
+                                delivery_text = f"❌ {delivery['error']}"
+                                total = None
+                            else:
+                                total = product["price"] + delivery["price"]
+                                delivery_text = "Самовывоз (0 ₽)" if delivery["price"] == 0 else f"Доставка: {delivery['price']} ₽"
+
+                            answer = (
+                                f"📦 {product['name']} — {product['price']} ₽\n"
+                                f"🚚 {delivery_text}\n"
+                                f"💰 Итого: {total} ₽\n\n"
+                                f"Для оформления заказа нужен ваш номер телефона."
+                            )
+                            vk.messages.send(user_id=uid, message=answer, random_id=0)
+                            dialogs[uid].append({"role": "assistant", "content": answer})
+                            if uid not in order_data:
+                                order_data[uid] = {}
+                            order_data[uid]["city"] = city_found
+                            order_data[uid]["product"] = product
+                            order_data[uid]["delivery_price"] = delivery.get("price")
+                            order_data[uid]["total"] = total
+                            continue
+
+                        elif not city_found:
+                            answer = "Для расчёта доставки скажите, из какого вы города?"
+                            vk.messages.send(user_id=uid, message=answer, random_id=0)
+                            dialogs[uid].append({"role": "assistant", "content": answer})
+                            continue
+
+                    if uid in order_data and not order_data[uid].get("phone"):
+                        phone_match = re.search(r'\+?\d[\d\s\-\(\)]{7,}\d', text)
+                        if phone_match:
+                            phone = phone_match.group().strip()
+                            order_data[uid]["phone"] = phone
+                            city = order_data[uid].get("city")
+                            product = order_data[uid].get("product")
+                            delivery_price = order_data[uid].get("delivery_price")
+                            total = order_data[uid].get("total")
+
+                            if city and product:
+                                order_result = create_cdek_order(city, product, phone, user_name, 1)
+                                order_msg = f"✅ Заказ создан! Номер отслеживания: {order_result['track_number']}" if "error" not in order_result else f"⚠️ Не удалось создать заказ в СДЭК: {order_result['error']}"
+
+                                answer = (
+                                    f"📦 {product['name']} — {product['price']} ₽\n"
+                                    f"🚚 Доставка: {delivery_price} ₽\n"
+                                    f"💰 Итого: {total} ₽\n\n"
+                                    f"{order_msg}\n"
+                                    f"Менеджер свяжется с вами. Спасибо! 😊"
+                                )
+                                vk.messages.send(user_id=uid, message=answer, random_id=0)
+                                dialogs[uid].append({"role": "assistant", "content": answer})
+
+                                for manager_id in MANAGER_IDS:
+                                    try:
+                                        vk.messages.send(
+                                            user_id=manager_id,
+                                            message=(
+                                                f"🛒 ЗАЯВКА от {user_name}!\n"
+                                                f"Товар: {product['name']}\n"
+                                                f"Город: {city}\n"
+                                                f"Телефон: {phone}\n"
+                                                f"Доставка: {delivery_price} ₽\n"
+                                                f"Итого: {total} ₽\n"
+                                                f"{order_msg}"
+                                            ),
+                                            random_id=0
+                                        )
+                                    except:
+                                        pass
+                                del order_data[uid]
+                                continue
+
+                    if uid not in dialogs:
+                        dialogs[uid] = [{"role": "system", "content": SYSTEM_PROMPT}]
+
+                    answer, new_history = ask_aitunnel(text, dialogs[uid])
+                    dialogs[uid] = new_history
+                    vk.messages.send(user_id=uid, message=answer, random_id=0)
+
+        except Exception as e:
+            print(f"⚠️ Ошибка: {e}. Перезапуск через 10 секунд...")
+            time.sleep(10)
 
 if __name__ == "__main__":
     main()
