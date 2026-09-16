@@ -9,10 +9,9 @@ VK_TOKEN = "vk1.a.gB_E6NmXBEv0nRT58o_22HRpW5hhLvc7TC22VbE1M8KBZPgW7beJfO-DmSqnCN
 MANAGER_IDS = [29279564, 598512076]
 AITUNNEL_API_KEY = "sk-aitunnel-EJz97YJpiOwnaObmGNjf6mU8cT2OdP8L"
 
-# ===== НАСТРОЙКИ СДЭК =====
 CDEK_CLIENT_ID = "xa9kg2n25HvBQeRSLAbZ51NoGEX4k7xX"
 CDEK_CLIENT_SECRET = "pfV81gBVIGK3WBSOzg6ybUQNGggp2Zp8"
-SENDER_CITY_CODE = 1177  # Владимир
+SENDER_CITY_CODE = 1177
 SENDER_ADDRESS = "ул. Юбилейная, 58"
 # ===============================================
 
@@ -35,8 +34,20 @@ PRODUCTS = [
     {"name": "Короба 380×240×290", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 33.0, "weight": 500, "length": 38, "width": 24, "height": 29},
     {"name": "Короба 590×195×120", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 57.72, "weight": 500, "length": 59, "width": 19.5, "height": 12},
     {"name": "Короба 785×235×215", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 42.87, "weight": 600, "length": 78.5, "width": 23.5, "height": 21.5},
-    {"name": "Ведро пластиковое пищевое 20 л с крышкой", "desc": "Б/У, из-под сиропа, идеальное состояние, без сколов, трещин и запаха. Толстый пластик (1 кг), герметичная крышка, пищевой пластик.", "price": 300.0, "weight": 1100, "length": 35, "width": 35, "height": 40},
+    {"name": "Ведро пластиковое пищевое 20 л с крышкой", "desc": "Б/У, из-под сиропа, идеальное состояние, без сколов, трещин и запаха. Толстый пластик (1 кг), герметичная крышка, пищевой пластик.", "price": 200.0, "weight": 1100, "length": 35, "width": 35, "height": 40},
+    {"name": "Набор эфирных масел PARLAB, 5 шт", "desc": "100% эфирные масла (чайное дерево, апельсин, мята, лаванда, иланг-иланг). Подарочная упаковка, 50 мл, Россия.", "price": 696.0, "weight": 400, "length": 20, "width": 15, "height": 5},
+    {"name": "Прокладки для собак PitoMir, 30 шт", "desc": "Впитывающие гипоаллергенные прокладки для собак и кошек. 30 шт.", "price": 432.0, "weight": 600, "length": 30, "width": 20, "height": 10},
+    {"name": "Садовая дорожка модульная GUSEV GARDEN, 27 шт", "desc": "Модульное покрытие 2.43 м². Прочный пластик, устойчивый к погоде.", "price": 2676.0, "weight": 5700, "length": 32, "width": 31, "height": 26},
+    {"name": "Садовая дорожка модульная GUSEV GARDEN, 9 шт", "desc": "Модульное покрытие 0.81 м². Компактный вариант.", "price": 1177.0, "weight": 2000, "length": 32, "width": 32, "height": 9},
+    {"name": "Скобы садовые с фиксаторами GUSEV GARDEN, 100 шт", "desc": "Оцинкованная сталь + пластиковые фиксаторы, 100 шт.", "price": 670.0, "weight": 1820, "length": 23, "width": 18, "height": 10},
+    {"name": "Заборчик садовый раздвижной декоративный GUSEV GARDEN", "desc": "WPC, высота 40 см, длина 90 см, колышки в комплекте.", "price": 923.0, "weight": 400, "length": 45, "width": 23, "height": 3},
+    {"name": "Печь походная отопительная для палатки и бани", "desc": "Сталь Aisi 439, с дымоходом и каменкой, для палаток и бань.", "price": 18000.0, "weight": 23000, "length": 67, "width": 30, "height": 45},
 ]
+
+# ===== ВСЁ ОСТАЛЬНОЕ БЕЗ ИЗМЕНЕНИЙ =====
+# (SYSTEM_PROMPT, CITY_CODES, get_cdek_token, get_city_code,
+#  calculate_delivery, create_cdek_order, ask_aitunnel, main)
+# Скопируй их из моего предыдущего сообщения — они подходят.
 
 SYSTEM_PROMPT = (
     "Ты — продавец-консультант интернет-магазина EVA.store.\n"
@@ -139,10 +150,6 @@ def calculate_delivery(city_name, product):
         return {"error": "Не удалось рассчитать доставку"}
 
 def create_cdek_order(city_name, product, phone, client_name, quantity=1):
-    """
-    Создаёт заказ в СДЭК через API.
-    Возвращает {'success': True, 'track_number': '...'} или {'error': '...'}
-    """
     city_code = get_city_code(city_name)
     if not city_code:
         return {"error": "Не удалось определить город"}
@@ -230,7 +237,7 @@ def main():
     vk_session = VkApi(token=VK_TOKEN)
     longpoll = VkLongPoll(vk_session, wait=90)
     vk = vk_session.get_api()
-    print("✅ Бот запущен (с созданием заказов в СДЭК)")
+    print("✅ Бот запущен (создание заказов в СДЭК + все товары)")
 
     dialogs = {}
     order_data = {}
@@ -277,25 +284,17 @@ def main():
                         total = None
                     else:
                         total = product["price"] + delivery["price"]
-                        if delivery["price"] == 0:
-                            delivery_text = "Самовывоз (0 ₽)"
-                        else:
-                            delivery_text = f"Доставка: {delivery['price']} ₽"
+                        delivery_text = "Самовывоз (0 ₽)" if delivery["price"] == 0 else f"Доставка: {delivery['price']} ₽"
 
-                    # Пытаемся создать заказ в СДЭК
                     order_result = create_cdek_order(city_found, product, phone, user_name, 1)
-                    if "error" in order_result:
-                        order_msg = f"⚠️ Не удалось создать заказ в СДЭК: {order_result['error']}"
-                        print(order_msg)
-                    else:
-                        order_msg = f"✅ Заказ создан! Номер отслеживания: {order_result['track_number']}"
+                    order_msg = f"✅ Заказ создан! Номер отслеживания: {order_result['track_number']}" if "error" not in order_result else f"⚠️ Не удалось создать заказ в СДЭК: {order_result['error']}"
 
                     answer = (
                         f"📦 {product['name']} — {product['price']} ₽\n"
                         f"🚚 {delivery_text}\n"
                         f"💰 Итого: {total} ₽\n\n"
                         f"{order_msg}\n"
-                        f"Менеджер свяжется с вами для уточнения деталей. Спасибо! 😊"
+                        f"Менеджер свяжется с вами. Спасибо! 😊"
                     )
                     vk.messages.send(user_id=uid, message=answer, random_id=0)
                     dialogs[uid].append({"role": "assistant", "content": answer})
@@ -326,10 +325,7 @@ def main():
                         total = None
                     else:
                         total = product["price"] + delivery["price"]
-                        if delivery["price"] == 0:
-                            delivery_text = "Самовывоз (0 ₽)"
-                        else:
-                            delivery_text = f"Доставка: {delivery['price']} ₽"
+                        delivery_text = "Самовывоз (0 ₽)" if delivery["price"] == 0 else f"Доставка: {delivery['price']} ₽"
 
                     answer = (
                         f"📦 {product['name']} — {product['price']} ₽\n"
@@ -365,18 +361,14 @@ def main():
 
                     if city and product:
                         order_result = create_cdek_order(city, product, phone, user_name, 1)
-                        if "error" in order_result:
-                            order_msg = f"⚠️ Не удалось создать заказ в СДЭК: {order_result['error']}"
-                            print(order_msg)
-                        else:
-                            order_msg = f"✅ Заказ создан! Номер отслеживания: {order_result['track_number']}"
+                        order_msg = f"✅ Заказ создан! Номер отслеживания: {order_result['track_number']}" if "error" not in order_result else f"⚠️ Не удалось создать заказ в СДЭК: {order_result['error']}"
 
                         answer = (
                             f"📦 {product['name']} — {product['price']} ₽\n"
                             f"🚚 Доставка: {delivery_price} ₽\n"
                             f"💰 Итого: {total} ₽\n\n"
                             f"{order_msg}\n"
-                            f"Менеджер свяжется с вами для уточнения деталей. Спасибо! 😊"
+                            f"Менеджер свяжется с вами. Спасибо! 😊"
                         )
                         vk.messages.send(user_id=uid, message=answer, random_id=0)
                         dialogs[uid].append({"role": "assistant", "content": answer})
