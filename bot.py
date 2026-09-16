@@ -44,11 +44,6 @@ PRODUCTS = [
     {"name": "Печь походная отопительная для палатки и бани", "desc": "Сталь Aisi 439, с дымоходом и каменкой, для палаток и бань.", "price": 18000.0, "weight": 23000, "length": 67, "width": 30, "height": 45},
 ]
 
-# ===== ВСЁ ОСТАЛЬНОЕ БЕЗ ИЗМЕНЕНИЙ =====
-# (SYSTEM_PROMPT, CITY_CODES, get_cdek_token, get_city_code,
-#  calculate_delivery, create_cdek_order, ask_aitunnel, main)
-# Скопируй их из моего предыдущего сообщения — они подходят.
-
 SYSTEM_PROMPT = (
     "Ты — продавец-консультант интернет-магазина EVA.store.\n"
     "Ты помогаешь клиентам с выбором и оформлением заказов.\n\n"
@@ -235,9 +230,9 @@ def ask_aitunnel(user_msg, history=None):
 def main():
     print("🔄 Подключаюсь к VK...")
     vk_session = VkApi(token=VK_TOKEN)
-    longpoll = VkLongPoll(vk_session, wait=90)
+    longpoll = VkLongPoll(vk_session, wait=120)
     vk = vk_session.get_api()
-    print("✅ Бот запущен (создание заказов в СДЭК + все товары)")
+    print("✅ Бот запущен (все товары + СДЭК + таймаут 120)")
 
     dialogs = {}
     order_data = {}
