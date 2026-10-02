@@ -1,6 +1,10 @@
 import time
 import requests
 import re
+import json
+import os
+import threading
+from datetime import datetime, timedelta
 from vk_api import VkApi
 from vk_api.longpoll import VkLongPoll, VkEventType
 
@@ -12,9 +16,16 @@ AITUNNEL_API_KEY = "sk-aitunnel-EJz97YJpiOwnaObmGNjf6mU8cT2OdP8L"
 CDEK_CLIENT_ID = "xa9kg2n25HvBQeRSLAbZ51NoGEX4k7xX"
 CDEK_CLIENT_SECRET = "pfV81gBVIGK3WBSOzg6ybUQNGggp2Zp8"
 SENDER_CITY_CODE = 1177
+SENDER_CITY_NAME = "владимир"
 SENDER_ADDRESS = "ул. Юбилейная, 58"
+SENDER_PHONE = "+79056161515"
+
+HISTORY_FILE = "dialogs.json"
+MANAGER_TIMEOUT_HOURS = 2
+REMINDER_HOURS = 12   # 👈 напоминание через 12 часов
 # ===============================================
 
+# ===== ТОВАРЫ =====
 PRODUCTS = [
     {"name": "Короба 600×400×400", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 70.0, "weight": 500, "length": 60, "width": 40, "height": 40},
     {"name": "Короба 600×400×200", "desc": "Новые, трёхслойный гофрокартон T23, упаковка 10 шт.", "price": 68.0, "weight": 400, "length": 60, "width": 40, "height": 20},
@@ -44,37 +55,65 @@ PRODUCTS = [
     {"name": "Печь походная отопительная для палатки и бани", "desc": "Сталь Aisi 439, с дымоходом и каменкой, для палаток и бань.", "price": 18000.0, "weight": 23000, "length": 67, "width": 30, "height": 45},
 ]
 
+PRODUCTS_LIST = "\n".join([f"- {p['name']}: {p['price']} ₽, вес ~{p['weight']}г" for p in PRODUCTS])
+
 SYSTEM_PROMPT = (
     "Ты — продавец-консультант интернет-магазина EVA.store.\n"
-    "Ты помогаешь клиентам с выбором и оформлением заказов.\n\n"
-    "У нас есть следующие товары (всегда используй эти названия и цены):\n"
-    + "\n".join([f"- {p['name']}: {p['price']} ₽, вес ~{p['weight']}г" for p in PRODUCTS]) +
-    "\n\nАЛГОРИТМ РАБОТЫ:\n"
-    "- Если клиент хочет купить — узнай его город, количество и товар.\n"
-    "- Затем рассчитай стоимость товара и доставки.\n"
-    "- Спроси номер телефона для оформления заказа.\n"
-    "- Когда клиент дал телефон — сообщи, что заявка передана менеджеру.\n"
-    "- Отвечай кратко, дружелюбно."
+    "Ты ведёшь полноценный диалог, помнишь историю и понимаешь свободную речь.\n"
+    "Твоя цель — убедить клиента купить товар. Не сравнивай нас с конкурентами.\n\n"
+    "АССОРТИМЕНТ:\n"
+    f"{PRODUCTS_LIST}\n\n"
+    "ТЕХНИКИ УБЕЖДЕНИЯ:\n"
+    "- Выявляй потребность: 'Для чего вам нужен товар?'\n"
+    "- Говори о выгоде: 'не треснет на морозе', 'прослужит годы'.\n"
+    "- Приводи примеры: 'Наши клиенты берут эти вёдра для засолки.'\n"
+    "- Работай с возражениями: 'Дорого? Посчитаем: 40 ₽ в год.'\n"
+    "- Закрывай сделку: 'Оформляем?', 'Сколько штук?'\n"
+    "- Во Владимире доставка бесплатная.\n"
+    "- Всегда проси телефон для оформления.\n"
+    "- Отвечай кратко, дружелюбно, с эмодзи."
 )
 
 CITY_CODES = {
-    "москва": 44,
-    "владимир": 1177,
-    "санкт-петербург": 2,
-    "питер": 2,
-    "новосибирск": 137,
-    "екатеринбург": 270,
+    "москва": 44, "владимир": 1177, "санкт-петербург": 2, "питер": 2,
+    "новосибирск": 137, "екатеринбург": 270, "самара": 435,
+    "казань": 43, "нижний новгород": 38, "краснодар": 26,
+    "ростов-на-дону": 13, "уфа": 122, "пермь": 124,
+    "воронеж": 10, "волгоград": 9,
 }
 
+TARIFF_NAMES = {
+    136: "Посылка склад-склад",
+    137: "Посылка склад-дверь",
+    138: "Экономичная посылка склад-дверь",
+    139: "Экономичная посылка склад-склад",
+    140: "Посылка склад-постамат",
+    141: "Экономичная посылка склад-постамат",
+}
+
+# ===== СОХРАНЕНИЕ ИСТОРИИ =====
+def save_dialogs(dialogs):
+    try:
+        with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(dialogs, f, ensure_ascii=False, indent=2)
+    except:
+        pass
+
+def load_dialogs():
+    if os.path.exists(HISTORY_FILE):
+        try:
+            with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            return {}
+    return {}
+
+# ===== СДЭК =====
 def get_cdek_token():
     try:
         response = requests.post(
             "https://api.cdek.ru/v2/oauth/token",
-            params={
-                "grant_type": "client_credentials",
-                "client_id": CDEK_CLIENT_ID,
-                "client_secret": CDEK_CLIENT_SECRET
-            },
+            params={"grant_type": "client_credentials", "client_id": CDEK_CLIENT_ID, "client_secret": CDEK_CLIENT_SECRET},
             timeout=30
         )
         if response.status_code == 200:
@@ -91,8 +130,8 @@ def get_city_code(city_name):
     return None
 
 def calculate_delivery(city_name, product):
-    if "владимир" in city_name.lower():
-        return {"price": 0, "days_min": 0, "days_max": 0}
+    if SENDER_CITY_NAME in city_name.lower():
+        return {"price": 0, "days_min": 0, "days_max": 0, "tariff_name": "Самовывоз (Владимир)"}
 
     city_code = get_city_code(city_name)
     if not city_code:
@@ -108,11 +147,11 @@ def calculate_delivery(city_name, product):
         package["width"] = product["width"]
         package["height"] = product["height"]
 
-    tariffs = [136, 137, 138]
     best_price = None
     best_days = None
+    best_tariff = None
 
-    for tariff in tariffs:
+    for tariff in [136, 137, 138]:
         try:
             response = requests.post(
                 "https://api.cdek.ru/v2/calculator/tariff",
@@ -128,23 +167,30 @@ def calculate_delivery(city_name, product):
             if response.status_code == 200:
                 data = response.json()
                 if "tariff_codes" in data and len(data["tariff_codes"]) > 0:
-                    tariff_info = data["tariff_codes"][0]
-                    price = tariff_info.get("total_sum", 0)
+                    info = data["tariff_codes"][0]
+                    price = info.get("total_sum", 0)
                     if price > 0 and (best_price is None or price < best_price):
                         best_price = price
-                        best_days = {
-                            "min": tariff_info.get("period_min", 2),
-                            "max": tariff_info.get("period_max", 4)
-                        }
+                        best_days = {"min": info.get("period_min", 2), "max": info.get("period_max", 4)}
+                        best_tariff = tariff
         except:
             continue
 
     if best_price is not None:
-        return {"price": best_price, "days_min": best_days["min"], "days_max": best_days["max"]}
+        return {
+            "price": best_price,
+            "days_min": best_days["min"],
+            "days_max": best_days["max"],
+            "tariff_code": best_tariff,
+            "tariff_name": TARIFF_NAMES.get(best_tariff, f"Тариф {best_tariff}")
+        }
     else:
         return {"error": "Не удалось рассчитать доставку"}
 
 def create_cdek_order(city_name, product, phone, client_name, quantity=1):
+    if SENDER_CITY_NAME in city_name.lower():
+        return {"success": True, "track_number": "Самовывоз (Владимир)"}
+
     city_code = get_city_code(city_name)
     if not city_code:
         return {"error": "Не удалось определить город"}
@@ -161,23 +207,12 @@ def create_cdek_order(city_name, product, phone, client_name, quantity=1):
         package["height"] = product["height"]
 
     order_data = {
-        "type": 1,
-        "number": f"EVA-{int(time.time())}",
-        "tariff_code": 136,
+        "type": 1, "number": f"EVA-{int(time.time())}", "tariff_code": 136,
         "comment": f"Заказ от {client_name}, товар: {product['name']}",
-        "sender": {
-            "name": "EVA.store",
-            "phone": "+79056161515",
-            "address": SENDER_ADDRESS
-        },
+        "sender": {"name": "EVA.store", "phone": SENDER_PHONE, "address": SENDER_ADDRESS},
         "recipient": {
-            "name": client_name,
-            "phone": phone,
-            "address": {
-                "city_code": city_code,
-                "street": "ул. Центральная",
-                "house": "1"
-            }
+            "name": client_name, "phone": phone,
+            "address": {"city_code": city_code, "street": "ул. Центральная", "house": "1"}
         },
         "packages": [package]
     }
@@ -186,47 +221,65 @@ def create_cdek_order(city_name, product, phone, client_name, quantity=1):
         response = requests.post(
             "https://api.cdek.ru/v2/orders",
             headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-            json=order_data,
-            timeout=60
+            json=order_data, timeout=60
         )
         if response.status_code == 200:
             data = response.json()
             if "entity" in data and "uuid" in data["entity"]:
-                track_number = data["entity"].get("track_number", "будет позже")
-                return {"success": True, "track_number": track_number}
-            else:
-                return {"error": f"Ошибка создания заказа: {data.get('errors', '')}"}
-        else:
-            return {"error": f"Ошибка СДЭК: {response.status_code}"}
+                return {"success": True, "track_number": data["entity"].get("track_number", "будет позже")}
+            return {"error": f"Ошибка: {data.get('errors', '')}"}
+        return {"error": f"Ошибка СДЭК: {response.status_code}"}
     except Exception as e:
         return {"error": str(e)}
 
+# ===== ИИ =====
 def ask_aitunnel(user_msg, history=None):
     if history is None:
         history = [{"role": "system", "content": SYSTEM_PROMPT}]
     history.append({"role": "user", "content": user_msg})
     url = "https://api.aitunnel.ru/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {AITUNNEL_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    data = {
-        "model": "deepseek-chat",
-        "messages": history,
-        "temperature": 0.7,
-        "max_tokens": 600
-    }
+    headers = {"Authorization": f"Bearer {AITUNNEL_API_KEY}", "Content-Type": "application/json"}
+    data = {"model": "deepseek-chat", "messages": history, "temperature": 0.7, "max_tokens": 600}
     try:
         response = requests.post(url, headers=headers, json=data, timeout=60)
         if response.status_code == 200:
             answer = response.json()["choices"][0]["message"]["content"]
             history.append({"role": "assistant", "content": answer})
             return answer, history
-        else:
-            return "❌ Ошибка AITunnel. Попробуйте позже.", history
+        return "❌ Ошибка AITunnel.", history
     except:
-        return "❌ Ошибка. Попробуйте позже.", history
+        return "❌ Ошибка.", history
 
+# ===== НАПОМИНАНИЯ (через 12 часов) =====
+pending_reminders = {}
+
+def reminder_worker(vk, last_manager_message):
+    while True:
+        try:
+            now = datetime.now()
+            for uid, data in list(pending_reminders.items()):
+                if now >= data["time"]:
+                    # Проверяем, не в диалоге ли менеджер
+                    if uid in last_manager_message:
+                        delta = now - last_manager_message[uid]
+                        if delta < timedelta(hours=MANAGER_TIMEOUT_HOURS):
+                            continue
+
+                    try:
+                        vk.messages.send(
+                            user_id=uid,
+                            message=f"👋 Напоминаем: вы интересовались «{data['product']}». Оформить заказ? 😊",
+                            random_id=0
+                        )
+                        print(f"📩 Напоминание отправлено {uid}")
+                    except:
+                        pass
+                    del pending_reminders[uid]
+        except:
+            pass
+        time.sleep(60)
+
+# ===== ОСНОВНОЙ ЦИКЛ =====
 def main():
     print("🔄 Подключаюсь к VK...")
     while True:
@@ -234,10 +287,13 @@ def main():
             vk_session = VkApi(token=VK_TOKEN)
             longpoll = VkLongPoll(vk_session, wait=200)
             vk = vk_session.get_api()
-            print("✅ Бот запущен (таймаут 200 секунд)")
+            print("✅ Бот запущен (полная версия, напоминание через 12 часов)")
 
-            dialogs = {}
+            dialogs = load_dialogs()
             order_data = {}
+            last_manager_message = {}  # объявляем ДО запуска потока
+
+            threading.Thread(target=reminder_worker, args=(vk, last_manager_message), daemon=True).start()
 
             for event in longpoll.listen():
                 if event.type == VkEventType.MESSAGE_NEW and event.to_me:
@@ -246,16 +302,31 @@ def main():
                     if not text:
                         continue
 
+                    # === ЕСЛИ ПИШЕТ МЕНЕДЖЕР ===
+                    if uid in MANAGER_IDS:
+                        last_manager_message[uid] = datetime.now()
+                        continue
+
+                    # === ЕСЛИ МЕНЕДЖЕР НЕДАВНО ПИСАЛ КЛИЕНТУ ===
+                    if uid in last_manager_message:
+                        delta = datetime.now() - last_manager_message[uid]
+                        if delta < timedelta(hours=MANAGER_TIMEOUT_HOURS):
+                            print(f"⏸️ Бот молчит: менеджер в диалоге с {uid}")
+                            continue
+                        else:
+                            del last_manager_message[uid]
+
                     try:
                         user_info = vk.users.get(user_id=uid)
                         user_name = user_info[0]['first_name']
                     except:
                         user_name = "Клиент"
 
-                    if uid not in dialogs:
-                        dialogs[uid] = [{"role": "system", "content": SYSTEM_PROMPT}]
+                    if str(uid) not in dialogs:
+                        dialogs[str(uid)] = [{"role": "system", "content": SYSTEM_PROMPT}]
 
-                    buy_keywords = ["купить", "заказать", "беру", "покупаю", "хочу"]
+                    # === ОБРАБОТКА ЗАКАЗА ===
+                    buy_keywords = ["купить", "заказать", "беру", "покупаю", "хочу", "оформить", "прикупить", "взять", "надо", "нужно"]
                     if any(w in text.lower() for w in buy_keywords):
                         product = None
                         for p in PRODUCTS:
@@ -281,10 +352,17 @@ def main():
                                 total = None
                             else:
                                 total = product["price"] + delivery["price"]
-                                delivery_text = "Самовывоз (0 ₽)" if delivery["price"] == 0 else f"Доставка: {delivery['price']} ₽"
+                                if delivery["price"] == 0:
+                                    delivery_text = "Самовывоз (0 ₽)"
+                                else:
+                                    delivery_text = (
+                                        f"Доставка: {delivery['price']} ₽ "
+                                        f"({delivery.get('tariff_name', 'тариф СДЭК')}, "
+                                        f"{delivery['days_min']}-{delivery['days_max']} дн.)"
+                                    )
 
                             order_result = create_cdek_order(city_found, product, phone, user_name, 1)
-                            order_msg = f"✅ Заказ создан! Номер отслеживания: {order_result['track_number']}" if "error" not in order_result else f"⚠️ Не удалось создать заказ в СДЭК: {order_result['error']}"
+                            order_msg = f"✅ Заказ создан! Трек: {order_result['track_number']}" if "error" not in order_result else f"⚠️ {order_result['error']}"
 
                             answer = (
                                 f"📦 {product['name']} — {product['price']} ₽\n"
@@ -294,25 +372,38 @@ def main():
                                 f"Менеджер свяжется с вами. Спасибо! 😊"
                             )
                             vk.messages.send(user_id=uid, message=answer, random_id=0)
-                            dialogs[uid].append({"role": "assistant", "content": answer})
+                            dialogs[str(uid)].append({"role": "assistant", "content": answer})
 
+                            dims = f"{product.get('length', '?')}×{product.get('width', '?')}×{product.get('height', '?')} см"
+                            total_weight = product["weight"]
                             for manager_id in MANAGER_IDS:
                                 try:
                                     vk.messages.send(
                                         user_id=manager_id,
                                         message=(
-                                            f"🛒 ЗАЯВКА от {user_name}!\n"
-                                            f"Товар: {product['name']}\n"
-                                            f"Город: {city_found}\n"
-                                            f"Телефон: {phone}\n"
-                                            f"Доставка: {delivery.get('price', 'не рассчитана')} ₽\n"
-                                            f"Итого: {total} ₽\n"
+                                            f"🛒 ДЕТАЛЬНАЯ ЗАЯВКА\n"
+                                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                                            f"👤 Клиент: {user_name}\n"
+                                            f"📞 Телефон: {phone}\n"
+                                            f"📍 Город: {city_found}\n"
+                                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                                            f"📦 ТОВАР: {product['name']}\n"
+                                            f"  • 1 шт., {total_weight} г, {dims}\n"
+                                            f"🚚 Доставка: {delivery.get('price', '?')} ₽ ({delivery.get('tariff_name', '?')})\n"
+                                            f"💰 Итого: {total} ₽\n"
+                                            f"📦 Сдать в ПВЗ: 1 шт., {dims}, {total_weight} г\n"
                                             f"{order_msg}"
                                         ),
                                         random_id=0
                                     )
                                 except:
                                     pass
+
+                            pending_reminders[uid] = {
+                                "time": datetime.now() + timedelta(hours=REMINDER_HOURS),
+                                "product": product["name"]
+                            }
+                            save_dialogs(dialogs)
                             continue
 
                         elif city_found and not phone_match:
@@ -322,7 +413,14 @@ def main():
                                 total = None
                             else:
                                 total = product["price"] + delivery["price"]
-                                delivery_text = "Самовывоз (0 ₽)" if delivery["price"] == 0 else f"Доставка: {delivery['price']} ₽"
+                                if delivery["price"] == 0:
+                                    delivery_text = "Самовывоз (0 ₽)"
+                                else:
+                                    delivery_text = (
+                                        f"Доставка: {delivery['price']} ₽ "
+                                        f"({delivery.get('tariff_name', 'тариф СДЭК')}, "
+                                        f"{delivery['days_min']}-{delivery['days_max']} дн.)"
+                                    )
 
                             answer = (
                                 f"📦 {product['name']} — {product['price']} ₽\n"
@@ -331,21 +429,24 @@ def main():
                                 f"Для оформления заказа нужен ваш номер телефона."
                             )
                             vk.messages.send(user_id=uid, message=answer, random_id=0)
-                            dialogs[uid].append({"role": "assistant", "content": answer})
-                            if uid not in order_data:
-                                order_data[uid] = {}
-                            order_data[uid]["city"] = city_found
-                            order_data[uid]["product"] = product
-                            order_data[uid]["delivery_price"] = delivery.get("price")
-                            order_data[uid]["total"] = total
+                            dialogs[str(uid)].append({"role": "assistant", "content": answer})
+                            order_data[uid] = {
+                                "city": city_found,
+                                "product": product,
+                                "delivery_price": delivery.get("price"),
+                                "total": total
+                            }
+                            save_dialogs(dialogs)
                             continue
 
                         elif not city_found:
                             answer = "Для расчёта доставки скажите, из какого вы города?"
                             vk.messages.send(user_id=uid, message=answer, random_id=0)
-                            dialogs[uid].append({"role": "assistant", "content": answer})
+                            dialogs[str(uid)].append({"role": "assistant", "content": answer})
+                            save_dialogs(dialogs)
                             continue
 
+                    # === ВВОД ТЕЛЕФОНА ===
                     if uid in order_data and not order_data[uid].get("phone"):
                         phone_match = re.search(r'\+?\d[\d\s\-\(\)]{7,}\d', text)
                         if phone_match:
@@ -357,45 +458,58 @@ def main():
                             total = order_data[uid].get("total")
 
                             if city and product:
+                                delivery = calculate_delivery(city, product)
                                 order_result = create_cdek_order(city, product, phone, user_name, 1)
-                                order_msg = f"✅ Заказ создан! Номер отслеживания: {order_result['track_number']}" if "error" not in order_result else f"⚠️ Не удалось создать заказ в СДЭК: {order_result['error']}"
+                                order_msg = f"✅ Заказ создан! Трек: {order_result['track_number']}" if "error" not in order_result else f"⚠️ {order_result['error']}"
 
                                 answer = (
                                     f"📦 {product['name']} — {product['price']} ₽\n"
-                                    f"🚚 Доставка: {delivery_price} ₽\n"
+                                    f"🚚 Доставка: {delivery_price} ₽ ({delivery.get('tariff_name', 'тариф СДЭК')})\n"
                                     f"💰 Итого: {total} ₽\n\n"
                                     f"{order_msg}\n"
                                     f"Менеджер свяжется с вами. Спасибо! 😊"
                                 )
                                 vk.messages.send(user_id=uid, message=answer, random_id=0)
-                                dialogs[uid].append({"role": "assistant", "content": answer})
+                                dialogs[str(uid)].append({"role": "assistant", "content": answer})
 
+                                dims = f"{product.get('length', '?')}×{product.get('width', '?')}×{product.get('height', '?')} см"
+                                total_weight = product["weight"]
                                 for manager_id in MANAGER_IDS:
                                     try:
                                         vk.messages.send(
                                             user_id=manager_id,
                                             message=(
-                                                f"🛒 ЗАЯВКА от {user_name}!\n"
-                                                f"Товар: {product['name']}\n"
-                                                f"Город: {city}\n"
-                                                f"Телефон: {phone}\n"
-                                                f"Доставка: {delivery_price} ₽\n"
-                                                f"Итого: {total} ₽\n"
+                                                f"🛒 ДЕТАЛЬНАЯ ЗАЯВКА\n"
+                                                f"━━━━━━━━━━━━━━━━━━━━\n"
+                                                f"👤 Клиент: {user_name}\n"
+                                                f"📞 Телефон: {phone}\n"
+                                                f"📍 Город: {city}\n"
+                                                f"━━━━━━━━━━━━━━━━━━━━\n"
+                                                f"📦 ТОВАР: {product['name']}\n"
+                                                f"  • 1 шт., {total_weight} г, {dims}\n"
+                                                f"🚚 Доставка: {delivery_price} ₽ ({delivery.get('tariff_name', '?')})\n"
+                                                f"💰 Итого: {total} ₽\n"
+                                                f"📦 Сдать в ПВЗ: 1 шт., {dims}, {total_weight} г\n"
                                                 f"{order_msg}"
                                             ),
                                             random_id=0
                                         )
                                     except:
                                         pass
+
+                                pending_reminders[uid] = {
+                                    "time": datetime.now() + timedelta(hours=REMINDER_HOURS),
+                                    "product": product["name"]
+                                }
                                 del order_data[uid]
+                                save_dialogs(dialogs)
                                 continue
 
-                    if uid not in dialogs:
-                        dialogs[uid] = [{"role": "system", "content": SYSTEM_PROMPT}]
-
-                    answer, new_history = ask_aitunnel(text, dialogs[uid])
-                    dialogs[uid] = new_history
+                    # === ОБЫЧНЫЙ ДИАЛОГ ===
+                    answer, new_history = ask_aitunnel(text, dialogs[str(uid)])
+                    dialogs[str(uid)] = new_history
                     vk.messages.send(user_id=uid, message=answer, random_id=0)
+                    save_dialogs(dialogs)
 
         except Exception as e:
             print(f"⚠️ Ошибка: {e}. Перезапуск через 10 секунд...")
