@@ -3,8 +3,7 @@ import requests
 import re
 import json
 import os
-import threading
-from datetime import datetime, timedelta
+from datetime import datetime
 from vk_api import VkApi
 from vk_api.longpoll import VkLongPoll, VkEventType
 
@@ -21,7 +20,6 @@ SENDER_ADDRESS = "ул. Юбилейная, 58"
 SENDER_PHONE = "+79056161515"
 
 HISTORY_FILE = "dialogs.json"
-REMINDER_HOURS = 12
 # ===============================================
 
 # ===== ТОВАРЫ =====
@@ -249,29 +247,6 @@ def ask_aitunnel(user_msg, history=None):
     except:
         return "❌ Ошибка.", history
 
-# ===== НАПОМИНАНИЯ =====
-pending_reminders = {}
-
-def reminder_worker(vk):
-    while True:
-        try:
-            now = datetime.now()
-            for uid, data in list(pending_reminders.items()):
-                if now >= data["time"]:
-                    try:
-                        vk.messages.send(
-                            user_id=uid,
-                            message=f"👋 Напоминаем: вы интересовались «{data['product']}». Оформить заказ? 😊",
-                            random_id=0
-                        )
-                        print(f"📩 Напоминание отправлено {uid}")
-                    except:
-                        pass
-                    del pending_reminders[uid]
-        except:
-            pass
-        time.sleep(60)
-
 # ===== ОСНОВНОЙ ЦИКЛ =====
 def main():
     print("🔄 Подключаюсь к VK...")
@@ -285,8 +260,6 @@ def main():
             dialogs = load_dialogs()
             order_data = {}
 
-            threading.Thread(target=reminder_worker, args=(vk,), daemon=True).start()
-
             for event in longpoll.listen():
                 if event.type == VkEventType.MESSAGE_NEW and event.to_me:
                     uid = event.user_id
@@ -294,7 +267,7 @@ def main():
                     if not text:
                         continue
 
-                    # === ИГНОРИРУЕМ МЕНЕДЖЕРОВ (но не блокируем клиентов) ===
+                    # === ИГНОРИРУЕМ МЕНЕДЖЕРОВ ===
                     if uid in MANAGER_IDS:
                         continue
 
@@ -381,10 +354,6 @@ def main():
                                 except:
                                     pass
 
-                            pending_reminders[uid] = {
-                                "time": datetime.now() + timedelta(hours=REMINDER_HOURS),
-                                "product": product["name"]
-                            }
                             save_dialogs(dialogs)
                             continue
 
@@ -479,10 +448,6 @@ def main():
                                     except:
                                         pass
 
-                                pending_reminders[uid] = {
-                                    "time": datetime.now() + timedelta(hours=REMINDER_HOURS),
-                                    "product": product["name"]
-                                }
                                 del order_data[uid]
                                 save_dialogs(dialogs)
                                 continue
