@@ -21,8 +21,7 @@ SENDER_ADDRESS = "ул. Юбилейная, 58"
 SENDER_PHONE = "+79056161515"
 
 HISTORY_FILE = "dialogs.json"
-MANAGER_TIMEOUT_HOURS = 2
-REMINDER_HOURS = 12   # 👈 напоминание через 12 часов
+REMINDER_HOURS = 12
 # ===============================================
 
 # ===== ТОВАРЫ =====
@@ -250,21 +249,15 @@ def ask_aitunnel(user_msg, history=None):
     except:
         return "❌ Ошибка.", history
 
-# ===== НАПОМИНАНИЯ (через 12 часов) =====
+# ===== НАПОМИНАНИЯ =====
 pending_reminders = {}
 
-def reminder_worker(vk, last_manager_message):
+def reminder_worker(vk):
     while True:
         try:
             now = datetime.now()
             for uid, data in list(pending_reminders.items()):
                 if now >= data["time"]:
-                    # Проверяем, не в диалоге ли менеджер
-                    if uid in last_manager_message:
-                        delta = now - last_manager_message[uid]
-                        if delta < timedelta(hours=MANAGER_TIMEOUT_HOURS):
-                            continue
-
                     try:
                         vk.messages.send(
                             user_id=uid,
@@ -287,13 +280,12 @@ def main():
             vk_session = VkApi(token=VK_TOKEN)
             longpoll = VkLongPoll(vk_session, wait=200)
             vk = vk_session.get_api()
-            print("✅ Бот запущен (полная версия, напоминание через 12 часов)")
+            print("✅ Бот запущен (без блокировки менеджеров)")
 
             dialogs = load_dialogs()
             order_data = {}
-            last_manager_message = {}  # объявляем ДО запуска потока
 
-            threading.Thread(target=reminder_worker, args=(vk, last_manager_message), daemon=True).start()
+            threading.Thread(target=reminder_worker, args=(vk,), daemon=True).start()
 
             for event in longpoll.listen():
                 if event.type == VkEventType.MESSAGE_NEW and event.to_me:
@@ -302,19 +294,9 @@ def main():
                     if not text:
                         continue
 
-                    # === ЕСЛИ ПИШЕТ МЕНЕДЖЕР ===
+                    # === ИГНОРИРУЕМ СООБЩЕНИЯ ОТ МЕНЕДЖЕРОВ ===
                     if uid in MANAGER_IDS:
-                        last_manager_message[uid] = datetime.now()
                         continue
-
-                    # === ЕСЛИ МЕНЕДЖЕР НЕДАВНО ПИСАЛ КЛИЕНТУ ===
-                    if uid in last_manager_message:
-                        delta = datetime.now() - last_manager_message[uid]
-                        if delta < timedelta(hours=MANAGER_TIMEOUT_HOURS):
-                            print(f"⏸️ Бот молчит: менеджер в диалоге с {uid}")
-                            continue
-                        else:
-                            del last_manager_message[uid]
 
                     try:
                         user_info = vk.users.get(user_id=uid)
