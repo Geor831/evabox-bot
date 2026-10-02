@@ -8,7 +8,7 @@ from vk_api import VkApi
 from vk_api.longpoll import VkLongPoll, VkEventType
 
 # ===== НАСТРОЙКИ =====
-VK_TOKEN = "vk1.a.CZqAdRXB0TDo0FQ6n5_cQnJoCBowsrmDfcp5oblGusc0PUdQYzh08s6cO1BDC6sSVrHyyCy1ChCOIZj-OoHsrJlXlmNC6Ha0ZzhJ0pdRNMZIYcybjkGECKo8sOQkvzhTdfEJYaEMJJqV4Ma_nuNxGAqVcp3sVRhixwUF4Tab6pnyMxT3kIdyOwzfOl3-i2lwlt2EygdPsd_Xkah3p9zEhQ"
+VK_TOKEN = "vk1.a.SRkkuK9sN4N_GpwlKjdldoXI_xuqnKFJVS0KaUmxNfegvqc9Z5VxzYGT7vQrlji-zxZY-Nlr4FjQSzaWQzSuF48vGNkRekd9_Dll7HQJ5wQo9XmnT9f8RtFcCMPJ8P2pjfE7dlamNDuIqi6kwSdjHj3xeF00RoM522y8EbMDDMyoyiNUqa-5AmCuRuWgDwYyIVi5XggWWO7ogN_-C1B-AQ"
 MANAGER_IDS = [29279564, 598512076]
 AITUNNEL_API_KEY = "sk-aitunnel-EJz97YJpiOwnaObmGNjf6mU8cT2OdP8L"
 
